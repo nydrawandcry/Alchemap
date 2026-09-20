@@ -1,0 +1,54 @@
+### IntelliJ IDEA ###
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+bin/
+!**/src/main/**/bin/
+!**/src/test/**/bin/
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+### Компиляция и артефакты сборки ##
+*.class
+*.jar
+*.war
+*.ear
+
+target/          # Стандартная папка Maven
+build/           # Стандартная папка Gradle
+out/             # Папка, которую IntelliJ IDEA использует по умолчанию для output
+
+### Служебные папки IntelliJ IDEA ###
+.idea/
+
+### Личные файлы модулей ###
+*.iml
+*.ipr
+*.iws
+
+### Папка для временных файлов и кэша IDEA ###
+.idea_modules/
+
+### Системные и временные файлы ###
+*.log
+hs_err_pid*
