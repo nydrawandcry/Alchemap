@@ -1,4 +1,4 @@
-package ru.alchemap.data;
+package data;
 
 import data.AlchemyRepository;
 import data.DemoRepository;

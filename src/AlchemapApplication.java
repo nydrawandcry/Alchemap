@@ -10,7 +10,7 @@ public final class AlchemapApplication {
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
-            ru.alchemap.data.RepositoryFactory.Result factory = ru.alchemap.data.RepositoryFactory.create();
+            data.RepositoryFactory.Result factory = data.RepositoryFactory.create();
             AlchemyRepository repository = factory.repository();
             String warning = factory.warning();
             List<Ingredient> ingredients;
