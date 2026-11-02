@@ -2,19 +2,30 @@ package model;
 
 /**
  * Ингредиент смеси
+ * @param id уникальный и
+ * @param name название инг
+ * @param category категория ин
+ * @param description описание инг
+ * @param healing лечение
+ * @param toxicity токсичность
+ * @param fire огонь
+ * @param frost заморозка
+ * @param volatility летучесть
+ * @param magic магия
+ * @param stability стабильность
  */
 public record Ingredient(
-        int id,             // уникальный идентификатор
-        String name,        // название ингредиента
-        String category,    // категория ингредиента
-        String description, // описание ингредиента
-        double healing,     // лечение
-        double toxicity,    // токсичность
-        double fire,        // огонь
-        double frost,       // заморозка
-        double volatility,  // летучесть
-        double magic,       // магия
-        double stability    // стабильность
+        int id,
+        String name,
+        String category,
+        String description,
+        double healing,
+        double toxicity,
+        double fire,
+        double frost,
+        double volatility,
+        double magic,
+        double stability
 ) {
     @Override
     public String toString() {
