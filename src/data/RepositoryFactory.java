@@ -1,5 +1,8 @@
 package ru.alchemap.data;
 
+import data.AlchemyRepository;
+import data.DemoRepository;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -27,7 +30,7 @@ public final class RepositoryFactory {
         }
 
         try {
-            return new Result(new MySqlRepository(config), null);
+            return new Result(new data.MySqlRepository(config), null);
         } catch (Exception ex) {
             String msg = "Не удалось подключиться к MySQL: " + ex.getMessage() + ". Запущен демонстрационный режим.";
             return new Result(new DemoRepository(), msg);

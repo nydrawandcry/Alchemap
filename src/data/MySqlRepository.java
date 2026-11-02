@@ -1,6 +1,6 @@
-package ru.alchemap.data;
+package data;
 
-import ru.alchemap.model.*;
+import model.*;
 
 import java.sql.*;
 import java.time.LocalDateTime;
@@ -108,7 +108,7 @@ public final class MySqlRepository implements AlchemyRepository {
                 for (ExperimentStep step : steps) {
                     ps.setLong(1, id);
                     ps.setInt(2, order++);
-                    if (step instanceof AddIngredientStep add) {
+                    if (step instanceof IngredientAdditionStep add) {
                         ps.setString(3, "INGREDIENT");
                         ps.setInt(4, add.ingredient().id());
                         ps.setDouble(5, add.quantity());
