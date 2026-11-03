@@ -1,17 +1,24 @@
 package data;
 
 import model.*;
+import model.potions.*;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class DemoRepository implements AlchemyRepository {
     private final List<Ingredient> ingredients = defaultIngredients();
     private final List<HistoryEntry> history = new ArrayList<>();
     private final AtomicLong ids = new AtomicLong(1);
+    private final Map<Long, RecipeDetails> details = new HashMap<>();
+    private final Map<Long, String> recipeNames = new HashMap<>();
+    private final List<PotionRule> rules = new ArrayList<>(DefaultPotionRules.create());
+    private final AtomicLong ruleIds = new AtomicLong(11);
 
     @Override
     public List<Ingredient> loadIngredients() {
@@ -27,20 +34,73 @@ public final class DemoRepository implements AlchemyRepository {
 
     @Override
     public long saveExperiment(String name, List<ExperimentStep> steps, AlchemyResult result) {
+        name = TextValidation.required(name, 160, "Название опыта");
         long id = ids.getAndIncrement();
+        details.put(id, new RecipeDetails(id, name, null, result.name(), result.type(),
+                result.description(), steps.stream().map(ExperimentStep::displayText).toList()));
         history.add(new HistoryEntry(id, name, LocalDateTime.now(), result.name(), result.type(), false));
         return id;
     }
 
     @Override
     public void markAsRecipe(long experimentId, String recipeName) {
+        recipeName = TextValidation.required(recipeName, 160, "Название рецепта");
         for (int i = 0; i < history.size(); i++) {
             HistoryEntry h = history.get(i);
             if (h.id() == experimentId) {
-                history.set(i, new HistoryEntry(h.id(), recipeName, h.createdAt(), h.resultName(), h.resultType(), true));
+                recipeNames.put(experimentId, recipeName);
+                history.set(i, new HistoryEntry(h.id(), h.name(), h.createdAt(), h.resultName(), h.resultType(), true));
                 return;
             }
         }
+        throw new IllegalArgumentException("Опыт не найден.");
+    }
+
+    @Override
+    public RecipeDetails loadRecipe(long experimentId) {
+        RecipeDetails d = details.get(experimentId);
+        String recipeName = recipeNames.get(experimentId);
+        if (d == null || recipeName == null) throw new IllegalArgumentException("Рецепт не найден.");
+        return new RecipeDetails(d.experimentId(), d.experimentName(), recipeName,
+                d.resultName(), d.resultType(), d.resultDescription(), d.steps());
+    }
+
+    @Override
+    public void renameExperiment(long experimentId, String name) {
+        name = TextValidation.required(name, 160, "Название опыта");
+        for (int i = 0; i < history.size(); i++) {
+            HistoryEntry h = history.get(i);
+            if (h.id() == experimentId) {
+                history.set(i, new HistoryEntry(h.id(), name, h.createdAt(), h.resultName(), h.resultType(), h.savedRecipe()));
+                RecipeDetails d = details.get(experimentId);
+                details.put(experimentId, new RecipeDetails(experimentId, name, d.recipeName(),
+                        d.resultName(), d.resultType(), d.resultDescription(), d.steps()));
+                return;
+            }
+        }
+        throw new IllegalArgumentException("Опыт не найден.");
+    }
+
+    @Override
+    public List<PotionRule> loadPotionRules() {
+        return rules.stream().sorted(PotionRule.ORDER).toList();
+    }
+
+    @Override
+    public long savePotionRule(PotionRule rule) {
+        long id = rule.id();
+        if (id == 0) id = ruleIds.getAndIncrement();
+        else {
+            long existingId = id;
+            if (rules.stream().noneMatch(r -> r.id() == existingId)) {
+                throw new IllegalArgumentException("Правило не найдено.");
+            }
+        }
+        long savedId = id;
+        rules.removeIf(r -> r.id() == savedId);
+        rules.add(new PotionRule(id, rule.name(), rule.type(), rule.description(),
+                rule.priority(), rule.enabled(), rule.conditions()));
+        return id;
     }
 
     @Override

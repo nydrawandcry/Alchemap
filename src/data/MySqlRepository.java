@@ -1,11 +1,14 @@
 package data;
 
 import model.*;
+import model.potions.*;
 
 import java.sql.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Properties;
 
 public final class MySqlRepository implements AlchemyRepository {
@@ -66,6 +69,7 @@ public final class MySqlRepository implements AlchemyRepository {
 
     @Override
     public long saveExperiment(String name, List<ExperimentStep> steps, AlchemyResult result) throws SQLException {
+        name = TextValidation.required(name, 160, "Название опыта");
         boolean oldAuto = connection.getAutoCommit();
         connection.setAutoCommit(false);
         try {
@@ -136,15 +140,144 @@ public final class MySqlRepository implements AlchemyRepository {
 
     @Override
     public void markAsRecipe(long experimentId, String recipeName) throws SQLException {
+        recipeName = TextValidation.required(recipeName, 160, "Название рецепта");
         String sql = """
                 INSERT INTO saved_recipes(experiment_id, name)
-                VALUES (?, ?)
-                ON DUPLICATE KEY UPDATE name = VALUES(name)
+                VALUES (?, ?) AS incoming
+                ON DUPLICATE KEY UPDATE name = incoming.name
                 """;
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setLong(1, experimentId);
             ps.setString(2, recipeName);
             ps.executeUpdate();
+        }
+    }
+
+    @Override
+    public RecipeDetails loadRecipe(long experimentId) throws SQLException {
+        String sql = """
+                SELECT e.name AS experiment_name, r.name AS recipe_name,
+                       e.result_name, e.result_type, e.result_description
+                FROM experiments e JOIN saved_recipes r ON r.experiment_id = e.id
+                WHERE e.id = ?
+                """;
+        String experimentName, recipeName, resultName, resultType, description;
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setLong(1, experimentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) throw new SQLException("Сохранённый рецепт не найден. Обновите журнал.");
+                experimentName = rs.getString("experiment_name");
+                recipeName = rs.getString("recipe_name");
+                resultName = rs.getString("result_name");
+                resultType = rs.getString("result_type");
+                description = rs.getString("result_description");
+            }
+        }
+        List<String> steps = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement(
+                "SELECT display_text FROM experiment_steps WHERE experiment_id = ? ORDER BY step_order")) {
+            ps.setLong(1, experimentId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) steps.add(rs.getString("display_text"));
+            }
+        }
+        return new RecipeDetails(experimentId, experimentName, recipeName,
+                resultName, resultType, description, steps);
+    }
+
+    @Override
+    public void renameExperiment(long experimentId, String name) throws SQLException {
+        name = TextValidation.required(name, 160, "Название опыта");
+        try (PreparedStatement ps = connection.prepareStatement("UPDATE experiments SET name = ? WHERE id = ?")) {
+            ps.setString(1, name);
+            ps.setLong(2, experimentId);
+            if (ps.executeUpdate() != 1) throw new SQLException("Опыт не найден. Обновите журнал.");
+        }
+    }
+
+    @Override
+    public List<PotionRule> loadPotionRules() throws SQLException {
+        Map<Long, List<RuleCondition>> conditions = new HashMap<>();
+        try (PreparedStatement ps = connection.prepareStatement("""
+                SELECT rule_id, alternative_group, metric, comparison, other_metric, multiplier, threshold
+                FROM potion_rule_conditions ORDER BY rule_id, condition_order
+                """); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                String other = rs.getString("other_metric");
+                try {
+                    RuleCondition condition = new RuleCondition(rs.getInt("alternative_group"),
+                            RuleMetric.valueOf(rs.getString("metric")),
+                            RuleComparison.valueOf(rs.getString("comparison")),
+                            other == null ? null : RuleMetric.valueOf(other),
+                            rs.getDouble("multiplier"), rs.getDouble("threshold"));
+                    conditions.computeIfAbsent(rs.getLong("rule_id"), ignored -> new ArrayList<>()).add(condition);
+                } catch (IllegalArgumentException ex) {
+                    throw new SQLException("Некорректное условие результата в базе: " + ex.getMessage(), ex);
+                }
+            }
+        }
+        List<PotionRule> rules = new ArrayList<>();
+        try (PreparedStatement ps = connection.prepareStatement("""
+                SELECT id, name, result_type, description, priority, enabled
+                FROM potion_rules ORDER BY priority DESC, id
+                """); ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                long id = rs.getLong("id");
+                rules.add(new PotionRule(id, rs.getString("name"), rs.getString("result_type"),
+                        rs.getString("description"), rs.getInt("priority"), rs.getBoolean("enabled"),
+                        conditions.getOrDefault(id, List.of())));
+            }
+        }
+        return rules;
+    }
+
+    @Override
+    public long savePotionRule(PotionRule rule) throws SQLException {
+        boolean oldAuto = connection.getAutoCommit();
+        connection.setAutoCommit(false);
+        try {
+            long id = rule.id();
+            String sql = id == 0
+                    ? "INSERT INTO potion_rules(name, result_type, description, priority, enabled) VALUES (?, ?, ?, ?, ?)"
+                    : "UPDATE potion_rules SET name = ?, result_type = ?, description = ?, priority = ?, enabled = ? WHERE id = ?";
+            try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, rule.name()); ps.setString(2, rule.type()); ps.setString(3, rule.description());
+                ps.setInt(4, rule.priority()); ps.setBoolean(5, rule.enabled());
+                if (id != 0) ps.setLong(6, id);
+                if (ps.executeUpdate() != 1) throw new SQLException("Правило не найдено. Обновите список.");
+                if (id == 0) {
+                    try (ResultSet keys = ps.getGeneratedKeys()) {
+                        if (!keys.next()) throw new SQLException("MySQL не вернул ID правила.");
+                        id = keys.getLong(1);
+                    }
+                }
+            }
+            try (PreparedStatement ps = connection.prepareStatement("DELETE FROM potion_rule_conditions WHERE rule_id = ?")) {
+                ps.setLong(1, id); ps.executeUpdate();
+            }
+            try (PreparedStatement ps = connection.prepareStatement("""
+                    INSERT INTO potion_rule_conditions(rule_id, condition_order, alternative_group,
+                        metric, comparison, other_metric, multiplier, threshold)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """)) {
+                int order = 1;
+                for (RuleCondition c : rule.conditions()) {
+                    ps.setLong(1, id); ps.setInt(2, order++); ps.setInt(3, c.group());
+                    ps.setString(4, c.metric().name()); ps.setString(5, c.comparison().name());
+                    if (c.otherMetric() == null) ps.setNull(6, Types.VARCHAR);
+                    else ps.setString(6, c.otherMetric().name());
+                    ps.setDouble(7, c.multiplier()); ps.setDouble(8, c.threshold());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            connection.commit();
+            return id;
+        } catch (SQLException ex) {
+            try { connection.rollback(); } catch (SQLException rollback) { ex.addSuppressed(rollback); }
+            throw ex;
+        } finally {
+            connection.setAutoCommit(oldAuto);
         }
     }
 
