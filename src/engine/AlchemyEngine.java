@@ -1,6 +1,7 @@
 package engine;
 
 import model.*;
+import model.potions.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +34,6 @@ public class AlchemyEngine {
         }
     }
 
-    private record Processed(MixtureSnapshot snapshot, boolean liquid, boolean distilled, boolean cooled, int burnCount) {}
 
     // ------------- вложенные интерфейсы -------------
 
@@ -42,113 +42,26 @@ public class AlchemyEngine {
     // ------------- методы -------------
 
     public MixtureSnapshot preview(List<ExperimentStep> steps) {
-        return process(steps).snapshot;
+        return process(steps).snapshot();
     }
 
-    public AlchemyResult finish(List<ExperimentStep> steps) {
-        Processed p = process(steps);
-        MixtureSnapshot s = p.snapshot;
-
-        if (s.ingredientCount() == 0) {
-            return new AlchemyResult(
-                    "Пустой котёл",
-                    "Бесполезный осадок",
-                    "Эксперимент завершён без ингредиентов. Получать здесь пока нечего.",
-                    s
-            );
+    /** Выбирает первое подходящее правило из БД по приоритету. */
+    public AlchemyResult finish(List<ExperimentStep> steps, List<PotionRule> rules) {
+        AlchemyContext context = process(steps);
+        MixtureSnapshot snapshot = context.snapshot();
+        if (snapshot.ingredientCount() == 0) {
+            return new AlchemyResult("Пустой котёл", "Бесполезный осадок",
+                    "Эксперимент завершён без ингредиентов. Получать здесь пока нечего.", snapshot);
         }
-
-        // Несколько узнаваемых результатов для демонстрации воспроизводимых рецептов.
-        if (s.healing() >= 20 && s.toxicity() <= 10 && s.stability() >= 12 && p.liquid) {
-            return new AlchemyResult(
-                    "Зелье малого лечения",
-                    "Зелье",
-                    "Стабильный лечебный состав. В игровой сессии может восстанавливать небольшое количество хитов.",
-                    s
-            );
-        }
-        if (s.fire() >= 18 && s.magic() >= 8 && p.liquid && !"холодная".equals(s.temperature())) {
-            return new AlchemyResult(
-                    "Эликсир огненного дыхания",
-                    "Зелье",
-                    "Горячая магическая смесь с выраженным огненным профилем. Требует осторожного хранения.",
-                    s
-            );
-        }
-        if (s.frost() >= 16 && p.distilled && p.cooled) {
-            return new AlchemyResult(
-                    "Морозная эссенция",
-                    "Реагент",
-                    "Концентрированный холодный реагент, пригодный для зелий, ловушек и зачарования.",
-                    s
-            );
-        }
-        if (s.toxicity() >= 20 && (s.volatility() >= 7 || p.distilled)) {
-            return new AlchemyResult(
-                    "Яд туманного укуса",
-                    "Яд",
-                    "Токсичный концентрат. Летучесть делает его особенно опасным при вскрытии сосуда.",
-                    s
-            );
-        }
-
-        double conflict = Math.min(s.fire(), s.frost());
-        double useful = Math.max(Math.max(s.healing(), s.toxicity()), Math.max(s.magic(), Math.max(s.fire(), s.frost())));
-
-        if (s.stability() < 5 || conflict >= 10 || (s.volatility() >= 18 && s.fire() >= 10)) {
-            return new AlchemyResult(
-                    "Нестабильная алхимическая смесь",
-                    "Нестабильная смесь",
-                    "Состав конфликтует сам с собой. Его эффект непредсказуем, а хранение потенциально опасно.",
-                    s
-            );
-        }
-
-        if (useful < 8 || p.burnCount >= 2 && s.magic() < 5 && s.toxicity() < 10) {
-            return new AlchemyResult(
-                    "Бесполезный осадок",
-                    "Бесполезный осадок",
-                    "Активные свойства почти разрушены. В колбе осталась алхимически малоценная масса.",
-                    s
-            );
-        }
-
-        if (s.toxicity() > s.healing() * 1.15 && s.toxicity() > 12) {
-            return new AlchemyResult(
-                    "Сырой алхимический яд",
-                    "Яд",
-                    "Токсичность доминирует над полезными свойствами. Эффект есть, но состав ещё грубый.",
-                    s
-            );
-        }
-
-        if (s.healing() >= 12 && s.healing() >= s.toxicity()) {
-            return new AlchemyResult(
-                    "Травяной восстановительный настой",
-                    "Зелье",
-                    "Лечебные свойства выражены сильнее побочных. Получился простой пригодный настой.",
-                    s
-            );
-        }
-
-        if (s.magic() >= 10 || s.fire() >= 12 || s.frost() >= 12) {
-            return new AlchemyResult(
-                    "Алхимический реагент",
-                    "Реагент",
-                    "Смесь имеет заметные активные свойства, но не сформировалась в законченное зелье.",
-                    s
-            );
-        }
-
-        return new AlchemyResult(
-                "Мутная алхимическая смесь",
-                "Бесполезный осадок",
-                "Компоненты взаимодействуют слишком слабо. Результат можно использовать только как сырьё для нового опыта.",
-                s
-        );
+        PotionRule rule = rules.stream().sorted(PotionRule.ORDER)
+                .filter(r -> r.matches(context)).findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Для этой смеси нет подходящего результата. Добавьте правило в редакторе мастера. "
+                        + "Правило без условий с приоритетом 0 можно использовать как запасной результат."));
+        return new AlchemyResult(rule.name(), rule.type(), rule.description(), snapshot);
     }
 
-    private Processed process(List<ExperimentStep> steps) {
+    private AlchemyContext process(List<ExperimentStep> steps) {
         List<Portion> portions = new ArrayList<>();
         boolean liquid = false;
         boolean distilled = false;
@@ -278,7 +191,7 @@ public class AlchemyEngine {
                 round(healing), round(toxicity), round(fire), round(frost), round(volatility),
                 round(magic), round(stability), state, temperature, color, portions.size(), actionCount
         );
-        return new Processed(snapshot, liquid, distilled, cooled, burnCount);
+        return new AlchemyContext(snapshot, liquid, distilled, cooled, burnCount);
     }
 
     private double sum(List<Portion> portions, Getter getter) {
