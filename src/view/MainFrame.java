@@ -8,6 +8,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.AbstractTableModel;
 import java.awt.*;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +48,7 @@ public final class MainFrame extends JFrame {
     private final JTable historyTable = new JTable();
     private final HistoryTableModel historyModel = new HistoryTableModel();
     private final JLabel modeLabel;
+    private PotionRulesPanel potionRulesPanel;
 
     private long lastExperimentId = -1;
     private AlchemyResult lastResult;
@@ -57,7 +60,12 @@ public final class MainFrame extends JFrame {
         this.ingredientList = new JList<>(ingredients.toArray(Ingredient[]::new));
         this.modeLabel = new JLabel("Хранилище: " + repository.modeName());
 
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
+        addWindowListener(new WindowAdapter() {
+            @Override public void windowClosing(WindowEvent e) {
+                if (potionRulesPanel == null || potionRulesPanel.confirmDiscard()) dispose();
+            }
+        });
         setMinimumSize(new Dimension(1180, 760));
         setSize(1360, 820);
         setLocationRelativeTo(null);
@@ -104,6 +112,8 @@ public final class MainFrame extends JFrame {
         JTabbedPane tabs = new JTabbedPane();
         tabs.addTab("Лаборатория", buildLaboratory());
         tabs.addTab("Журнал опытов", buildHistory());
+        potionRulesPanel = new PotionRulesPanel(repository);
+        tabs.addTab("Редактор мастера", potionRulesPanel);
         root.add(tabs, BorderLayout.CENTER);
         return root;
     }
@@ -405,9 +415,9 @@ public final class MainFrame extends JFrame {
             JOptionPane.showMessageDialog(this, "Эксперимент пуст. Добавьте ингредиенты.");
             return;
         }
-        AlchemyResult result = engine.finish(steps);
-        String defaultName = "Опыт — " + result.name();
         try {
+            AlchemyResult result = engine.finish(steps, repository.loadPotionRules());
+            String defaultName = "Опыт — " + result.name();
             long id = repository.saveExperiment(defaultName, List.copyOf(steps), result);
             lastExperimentId = id;
             lastResult = result;
@@ -420,7 +430,7 @@ public final class MainFrame extends JFrame {
             refreshHistory();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
-                    "Не удалось сохранить эксперимент: " + ex.getMessage(),
+                    "Не удалось завершить и сохранить эксперимент: " + ex.getMessage(),
                     "Ошибка", JOptionPane.ERROR_MESSAGE);
         }
     }
