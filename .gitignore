@@ -58,3 +58,6 @@ hs_err_pid*
 
 # Локальные настройки бд
 /config.properties
+
+# Подключает работу с бд
+!/lib/mysql-connector-j-26.10.0.jar
