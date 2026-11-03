@@ -3,13 +3,19 @@ package view;
 import data.AlchemyRepository;
 import engine.AlchemyEngine;
 import model.*;
+import model.potions.RecipeDetails;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.ActionEvent;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -287,11 +293,58 @@ public final class MainFrame extends JFrame {
         historyTable.setModel(historyModel);
         historyTable.setRowHeight(28);
         historyTable.setFillsViewportHeight(true);
+        historyTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        historyTable.setAutoCreateRowSorter(true);
+        historyTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+            @Override public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean selected, boolean focus, int row, int column) {
+                super.getTableCellRendererComponent(table, value, selected, focus, row, column);
+                setToolTipText("—".equals(value) ? "Этот опыт не отмечен как рецепт."
+                        : "Нажмите, чтобы открыть шаги рецепта.");
+                if (!selected && !"—".equals(value)) setForeground(ACCENT);
+                return this;
+            }
+        });
+        historyTable.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                if (!SwingUtilities.isLeftMouseButton(e) || e.getClickCount() != 1) return;
+                int row = historyTable.rowAtPoint(e.getPoint());
+                int column = historyTable.columnAtPoint(e.getPoint());
+                if (row < 0 || column < 0) return;
+                if (historyTable.convertColumnIndexToModel(column) == 4) {
+                    historyTable.setRowSelectionInterval(row, row);
+                    showRecipe(row, e.getX(), e.getY() + historyTable.getRowHeight());
+                }
+            }
+        });
+        historyTable.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "openRecipe");
+        historyTable.getActionMap().put("openRecipe", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                int row = historyTable.getSelectedRow();
+                if (row >= 0) {
+                    int column = historyTable.convertColumnIndexToView(4);
+                    Rectangle cell = historyTable.getCellRect(row, column, true);
+                    showRecipe(row, cell.x, cell.y + cell.height);
+                }
+            }
+        });
         panel.add(new JScrollPane(historyTable), BorderLayout.CENTER);
         JButton refresh = new JButton("Обновить журнал");
         refresh.addActionListener(e -> refreshHistory());
         panel.add(refresh, BorderLayout.SOUTH);
         return panel;
+    }
+
+    private void showRecipe(int viewRow, int x, int y) {
+        HistoryEntry entry = historyModel.entryAt(historyTable.convertRowIndexToModel(viewRow));
+        if (!entry.savedRecipe()) return;
+        try {
+            RecipeDetails recipe = repository.loadRecipe(entry.id());
+            new RecipePopup(recipe).show(historyTable, x, y);
+        } catch (Exception ex) {
+            JOptionPane.showMessageDialog(this, "Не удалось открыть рецепт: " + ex.getMessage(),
+                    "Рецепт", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     private JPanel card(String titleText) {
@@ -508,6 +561,8 @@ public final class MainFrame extends JFrame {
             fireTableDataChanged();
         }
 
+        HistoryEntry entryAt(int row) { return rows.get(row); }
+
         @Override public int getRowCount() { return rows.size(); }
         @Override public int getColumnCount() { return columns.length; }
         @Override public String getColumnName(int column) { return columns[column]; }
@@ -520,7 +575,7 @@ public final class MainFrame extends JFrame {
                 case 1 -> h.name();
                 case 2 -> h.resultName();
                 case 3 -> h.resultType();
-                case 4 -> h.savedRecipe() ? "Да" : "—";
+                case 4 -> h.savedRecipe() ? "Показать ▾" : "—";
                 default -> "";
             };
         }
