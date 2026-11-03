@@ -34,9 +34,12 @@ bin/
 *.war
 *.ear
 
-target/          # Стандартная папка Maven
-build/           # Стандартная папка Gradle
-out/             # Папка, которую IntelliJ IDEA использует по умолчанию для output
+# Стандартная папка Maven
+target/     
+# Стандартная папка Gradle   
+build/      
+# Папка, которую IntelliJ IDEA использует по умолчанию для output     
+out/             
 
 ### Служебные папки IntelliJ IDEA ###
 .idea/
@@ -52,3 +55,6 @@ out/             # Папка, которую IntelliJ IDEA использует
 ### Системные и временные файлы ###
 *.log
 hs_err_pid*
+
+# Локальные настройки бд
+/config.properties
