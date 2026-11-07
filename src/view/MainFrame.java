@@ -470,6 +470,15 @@ public final class MainFrame extends JFrame {
         lastExperimentId = -1;
         lastResult = null;
         saveRecipeButton.setEnabled(false);
+
+        if(steps.isEmpty()) {
+            resultTitle.setText("Эксперимент еще не завершен");
+            resultDescription.setText("Соберите новую цепочку ингредиентов и действий.");
+        } else {
+            resultTitle.setText("Эксперимент продолжается");
+            resultDescription.setText("Цепочка изменилась. Завершите эксперимент повторно.");
+        }
+
         updatePreview();
     }
 
