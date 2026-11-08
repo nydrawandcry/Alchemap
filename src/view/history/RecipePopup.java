@@ -1,4 +1,4 @@
-package view;
+package view.history;
 
 import model.potions.RecipeDetails;
 import javax.swing.*;

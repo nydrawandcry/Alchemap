@@ -8,6 +8,8 @@ import model.potions.*;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import view.history.HistoryTableModel;
+import view.history.RecipePopup;
+
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.*;
