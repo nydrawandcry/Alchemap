@@ -7,7 +7,7 @@ import model.potions.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import javax.swing.table.AbstractTableModel;
+import view.history.HistoryTableModel;
 import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.*;
@@ -610,36 +610,6 @@ public final class MainFrame extends JFrame {
 
     private static String escape(String s) {
         return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    }
-
-    private static final class HistoryTableModel extends AbstractTableModel {
-        private final String[] columns = {"Дата", "Название", "Результат", "Тип", "Рецепт"};
-        private List<HistoryEntry> rows = List.of();
-        private final DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-
-        void setRows(List<HistoryEntry> rows) {
-            this.rows = rows;
-            fireTableDataChanged();
-        }
-
-        HistoryEntry entryAt(int row) { return rows.get(row); }
-
-        @Override public int getRowCount() { return rows.size(); }
-        @Override public int getColumnCount() { return columns.length; }
-        @Override public String getColumnName(int column) { return columns[column]; }
-
-        @Override
-        public Object getValueAt(int rowIndex, int columnIndex) {
-            HistoryEntry h = rows.get(rowIndex);
-            return switch (columnIndex) {
-                case 0 -> h.createdAt().format(fmt);
-                case 1 -> h.name();
-                case 2 -> h.resultName();
-                case 3 -> h.resultType();
-                case 4 -> h.savedRecipe() ? "Показать ▾" : "—";
-                default -> "";
-            };
-        }
     }
 
     /**
