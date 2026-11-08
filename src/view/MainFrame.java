@@ -9,6 +9,9 @@ import javax.swing.border.EmptyBorder;
 import view.history.HistoryPanel;
 import view.common.NameDialogs;
 import view.ingredients.IngredientDialog;
+import view.ingredients.IngredientPanel;
+
+import static view.common.UiTheme.*;
 
 import java.awt.*;
 import java.awt.event.*;
@@ -18,23 +21,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class MainFrame extends JFrame {
-    private static final Color BG = new Color(25, 22, 32);
-    private static final Color PANEL = new Color(38, 32, 48);
-    private static final Color PANEL_2 = new Color(48, 39, 60);
-    private static final Color ACCENT = new Color(153, 109, 210);
-    private static final Color TEXT = new Color(238, 233, 244);
-    private static final Color MUTED = new Color(190, 180, 204);
-
     private final AlchemyRepository repository;
     private final AlchemyEngine engine = new AlchemyEngine();
-    private final List<Ingredient> ingredients;
     private final List<ExperimentStep> steps = new ArrayList<>();
 
     private final DefaultListModel<ExperimentStep> stepModel = new DefaultListModel<>();
     private final JList<ExperimentStep> stepList = new JList<>(stepModel);
-    private final JList<Ingredient> ingredientList;
-    private final JSpinner quantitySpinner = new JSpinner(new SpinnerNumberModel(1.0, 0.5, 20.0, 0.5));
-    private final JTextArea ingredientDescription = new JTextArea();
     private final JLabel stateValue = valueLabel();
     private final JLabel temperatureValue = valueLabel();
     private final JLabel stabilityValue = valueLabel();
@@ -51,6 +43,7 @@ public final class MainFrame extends JFrame {
     private final JLabel modeLabel;
     private PotionRulesPanel potionRulesPanel;
     private HistoryPanel historyPanel;
+    private final IngredientPanel ingredientPanel;
 
     private long lastExperimentId = -1;
     private AlchemyResult lastResult;
@@ -58,8 +51,7 @@ public final class MainFrame extends JFrame {
     public MainFrame(AlchemyRepository repository, List<Ingredient> ingredients, String startupWarning) {
         super("Alchemap — алхимическая лаборатория");
         this.repository = repository;
-        this.ingredients = new ArrayList<>(ingredients);
-        this.ingredientList = new JList<>(this.ingredients.toArray(Ingredient[]::new));
+
         this.modeLabel = new JLabel("Хранилище: " + repository.modeName());
 
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -73,9 +65,16 @@ public final class MainFrame extends JFrame {
         setLocationRelativeTo(null);
 
         configureLook();
+
+        ingredientPanel = new IngredientPanel(
+                repository,
+                ingredients,
+                (ingredient, quantity) -> addStep(
+                        new IngredientAdditionStep(ingredient, quantity)
+                )
+        );
+
         setContentPane(buildRoot());
-        bindEvents();
-        updateIngredientDescription();
         updatePreview();
         refreshHistory();
 
@@ -166,40 +165,10 @@ public final class MainFrame extends JFrame {
 
     private JPanel buildIngredientPanel() {
         JPanel panel = card("Ингредиенты");
-        panel.setLayout(new BorderLayout(8, 8));
+        panel.setLayout(new BorderLayout());
 
-        JButton createButton = primaryButton("Новый ингредиент");
-        createButton.addActionListener(e -> createIngredient());
-        panel.add(createButton, BorderLayout.NORTH);
+        panel.add(ingredientPanel, BorderLayout.CENTER);
 
-        ingredientList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        ingredientList.setSelectedIndex(0);
-        ingredientList.setCellRenderer(new IngredientRenderer());
-        panel.add(new JScrollPane(ingredientList), BorderLayout.CENTER);
-
-        JPanel bottom = new JPanel();
-        bottom.setOpaque(false);
-        bottom.setLayout(new BoxLayout(bottom, BoxLayout.Y_AXIS));
-        ingredientDescription.setEditable(false);
-        ingredientDescription.setLineWrap(true);
-        ingredientDescription.setWrapStyleWord(true);
-        ingredientDescription.setRows(4);
-        ingredientDescription.setForeground(MUTED);
-        ingredientDescription.setBorder(new EmptyBorder(8, 8, 8, 8));
-        bottom.add(ingredientDescription);
-        bottom.add(Box.createVerticalStrut(8));
-
-        JPanel addRow = new JPanel(new BorderLayout(6, 0));
-        addRow.setOpaque(false);
-        JLabel qty = new JLabel("Количество:");
-        qty.setForeground(TEXT);
-        addRow.add(qty, BorderLayout.WEST);
-        addRow.add(quantitySpinner, BorderLayout.CENTER);
-        JButton addButton = primaryButton("Добавить");
-        addButton.addActionListener(e -> addIngredient());
-        addRow.add(addButton, BorderLayout.EAST);
-        bottom.add(addRow);
-        panel.add(bottom, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -330,37 +299,6 @@ public final class MainFrame extends JFrame {
         panel.add(value);
     }
 
-    private JButton primaryButton(String text) {
-        JButton b = new JButton(text);
-        b.setBackground(ACCENT);
-        b.setForeground(Color.WHITE);
-        b.setFocusPainted(false);
-        return b;
-    }
-
-    private void bindEvents() {
-        ingredientList.addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) updateIngredientDescription();
-        });
-    }
-
-    private void updateIngredientDescription() {
-        Ingredient i = ingredientList.getSelectedValue();
-        if (i == null) {
-            ingredientDescription.setText("");
-            return;
-        }
-        ingredientDescription.setText(i.category() + "\n" + i.description() +
-                "\nЛечение " + i.healing() + " · Токс. " + i.toxicity() + " · Магия " + i.magic());
-    }
-
-    private void addIngredient() {
-        Ingredient i = ingredientList.getSelectedValue();
-        if (i == null) return;
-        double q = ((Number) quantitySpinner.getValue()).doubleValue();
-        addStep(new IngredientAdditionStep(i, q));
-    }
-
     private void addAction(AlchemyAction action) {
         if (steps.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Сначала добавьте хотя бы один ингредиент.");
@@ -483,18 +421,6 @@ public final class MainFrame extends JFrame {
         super.dispose();
     }
 
-    private static final class IngredientRenderer extends DefaultListCellRenderer {
-        @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
-            JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, selected, focus);
-            if (value instanceof Ingredient i) {
-                l.setText("<html><b>" + escape(i.name()) + "</b><br><span style='color:#bfb4cc'>" + escape(i.category()) + "</span></html>");
-                l.setBorder(new EmptyBorder(7, 7, 7, 7));
-            }
-            return l;
-        }
-    }
-
     private static final class StepRenderer extends DefaultListCellRenderer {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
@@ -506,35 +432,5 @@ public final class MainFrame extends JFrame {
             }
             return l;
         }
-    }
-
-    private static String escape(String s) {
-        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-    }
-
-    /**
-     * Добавляет созданный ингредиент в каталог и выбирает его
-     */
-    private void createIngredient() {
-        Ingredient created =
-                new IngredientDialog(this, repository).showDialog();
-
-        if (created == null) return;
-
-        ingredients.add(created);
-
-        ingredients.sort(
-                java.util.Comparator.comparing(
-                        Ingredient::name,
-                        String.CASE_INSENSITIVE_ORDER
-                )
-        );
-
-        ingredientList.setListData(
-                ingredients.toArray(Ingredient[]::new)
-        );
-        ingredientList.setSelectedValue(created, true);
-
-        updateIngredientDescription();
     }
 }
