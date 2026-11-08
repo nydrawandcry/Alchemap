@@ -10,6 +10,7 @@ import view.history.HistoryPanel;
 import view.common.NameDialogs;
 import view.ingredients.IngredientDialog;
 import view.ingredients.IngredientPanel;
+import view.mixture.MixturePanel;
 
 import static view.common.UiTheme.*;
 
@@ -27,23 +28,12 @@ public final class MainFrame extends JFrame {
 
     private final DefaultListModel<ExperimentStep> stepModel = new DefaultListModel<>();
     private final JList<ExperimentStep> stepList = new JList<>(stepModel);
-    private final JLabel stateValue = valueLabel();
-    private final JLabel temperatureValue = valueLabel();
-    private final JLabel stabilityValue = valueLabel();
-    private final JLabel colorValue = valueLabel();
-    private final JLabel healingValue = valueLabel();
-    private final JLabel toxicityValue = valueLabel();
-    private final JLabel fireValue = valueLabel();
-    private final JLabel frostValue = valueLabel();
-    private final JLabel magicValue = valueLabel();
-    private final JLabel volatilityValue = valueLabel();
-    private final JLabel resultTitle = new JLabel("Эксперимент ещё не завершён");
-    private final JTextArea resultDescription = new JTextArea("Соберите цепочку ингредиентов и действий, затем нажмите «Завершить эксперимент».");
-    private final JButton saveRecipeButton = new JButton("Сохранить как рецепт");
+
     private final JLabel modeLabel;
     private PotionRulesPanel potionRulesPanel;
     private HistoryPanel historyPanel;
     private final IngredientPanel ingredientPanel;
+    private final MixturePanel mixturePanel;
 
     private long lastExperimentId = -1;
     private AlchemyResult lastResult;
@@ -65,6 +55,8 @@ public final class MainFrame extends JFrame {
         setLocationRelativeTo(null);
 
         configureLook();
+
+        mixturePanel = new MixturePanel(this::saveRecipe);
 
         ingredientPanel = new IngredientPanel(
                 repository,
@@ -159,7 +151,7 @@ public final class MainFrame extends JFrame {
         c.gridx = 2;
         c.weightx = 0.30;
         c.insets = new Insets(0, 0, 0, 0);
-        body.add(buildStatePanel(), c);
+        body.add(mixturePanel, c);
         return body;
     }
 
@@ -216,46 +208,6 @@ public final class MainFrame extends JFrame {
         return panel;
     }
 
-    private JPanel buildStatePanel() {
-        JPanel outer = new JPanel();
-        outer.setOpaque(false);
-        outer.setLayout(new BoxLayout(outer, BoxLayout.Y_AXIS));
-
-        JPanel state = card("Текущая смесь");
-        state.setLayout(new GridLayout(10, 2, 6, 7));
-        addMetric(state, "Состояние", stateValue);
-        addMetric(state, "Температура", temperatureValue);
-        addMetric(state, "Цвет", colorValue);
-        addMetric(state, "Стабильность", stabilityValue);
-        addMetric(state, "Лечение", healingValue);
-        addMetric(state, "Токсичность", toxicityValue);
-        addMetric(state, "Огонь", fireValue);
-        addMetric(state, "Холод", frostValue);
-        addMetric(state, "Магия", magicValue);
-        addMetric(state, "Летучесть", volatilityValue);
-        state.setMaximumSize(new Dimension(Integer.MAX_VALUE, 310));
-        outer.add(state);
-        outer.add(Box.createVerticalStrut(10));
-
-        JPanel result = card("Результат");
-        result.setLayout(new BorderLayout(6, 8));
-        resultTitle.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 18));
-        resultTitle.setForeground(new Color(220, 196, 255));
-        result.add(resultTitle, BorderLayout.NORTH);
-        resultDescription.setEditable(false);
-        resultDescription.setLineWrap(true);
-        resultDescription.setWrapStyleWord(true);
-        resultDescription.setRows(7);
-        resultDescription.setForeground(MUTED);
-        resultDescription.setBorder(new EmptyBorder(8, 8, 8, 8));
-        result.add(resultDescription, BorderLayout.CENTER);
-        saveRecipeButton.setEnabled(false);
-        saveRecipeButton.addActionListener(e -> saveRecipe());
-        result.add(saveRecipeButton, BorderLayout.SOUTH);
-        outer.add(result);
-        return outer;
-    }
-
     private JComponent buildHistory() {
         JPanel panel = card("Журнал опытов и сохранённые рецепты");
         panel.setLayout(new BorderLayout());
@@ -270,35 +222,6 @@ public final class MainFrame extends JFrame {
         return NameDialogs.askName(this, title, initial);
     }
 
-    private JPanel card(String titleText) {
-        JPanel panel = new JPanel();
-        panel.setBackground(PANEL);
-        panel.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(72, 60, 88)),
-                new EmptyBorder(10, 10, 10, 10)
-        ));
-        panel.setName(titleText);
-        panel.setBorder(BorderFactory.createTitledBorder(
-                panel.getBorder(), titleText, 0, 0,
-                new Font(Font.SANS_SERIF, Font.BOLD, 14), TEXT
-        ));
-        return panel;
-    }
-
-    private static JLabel valueLabel() {
-        JLabel l = new JLabel("—");
-        l.setForeground(new Color(222, 208, 240));
-        l.setHorizontalAlignment(SwingConstants.RIGHT);
-        return l;
-    }
-
-    private void addMetric(JPanel panel, String key, JLabel value) {
-        JLabel label = new JLabel(key);
-        label.setForeground(MUTED);
-        panel.add(label);
-        panel.add(value);
-    }
-
     private void addAction(AlchemyAction action) {
         if (steps.isEmpty()) {
             JOptionPane.showMessageDialog(this, "Сначала добавьте хотя бы один ингредиент.");
@@ -310,58 +233,45 @@ public final class MainFrame extends JFrame {
     private void addStep(ExperimentStep step) {
         steps.add(step);
         stepModel.addElement(step);
+
         lastExperimentId = -1;
         lastResult = null;
-        saveRecipeButton.setEnabled(false);
-        resultTitle.setText("Эксперимент продолжается");
-        resultDescription.setText("Изменение цепочки сбрасывает предыдущий итог. Завершите эксперимент повторно.");
+
+        mixturePanel.showPending(false);
         updatePreview();
+
         int last = stepModel.size() - 1;
-        if (last >= 0) stepList.ensureIndexIsVisible(last);
+        if (last >= 0) {
+            stepList.ensureIndexIsVisible(last);
+        }
     }
 
     private void undoStep() {
         if (steps.isEmpty()) return;
+
         steps.remove(steps.size() - 1);
         stepModel.remove(stepModel.size() - 1);
+
         lastExperimentId = -1;
         lastResult = null;
-        saveRecipeButton.setEnabled(false);
 
-        if(steps.isEmpty()) {
-            resultTitle.setText("Эксперимент еще не завершен");
-            resultDescription.setText("Соберите новую цепочку ингредиентов и действий.");
-        } else {
-            resultTitle.setText("Эксперимент продолжается");
-            resultDescription.setText("Цепочка изменилась. Завершите эксперимент повторно.");
-        }
-
+        mixturePanel.showPending(steps.isEmpty());
         updatePreview();
     }
 
     private void clearExperiment() {
         steps.clear();
         stepModel.clear();
+
         lastExperimentId = -1;
         lastResult = null;
-        saveRecipeButton.setEnabled(false);
-        resultTitle.setText("Эксперимент ещё не завершён");
-        resultDescription.setText("Соберите новую цепочку ингредиентов и действий.");
+
+        mixturePanel.showPending(true);
         updatePreview();
     }
 
     private void updatePreview() {
-        MixtureSnapshot s = engine.preview(steps);
-        stateValue.setText(s.state());
-        temperatureValue.setText(s.temperature());
-        colorValue.setText(s.color());
-        stabilityValue.setText(format(s.stability()));
-        healingValue.setText(format(s.healing()));
-        toxicityValue.setText(format(s.toxicity()));
-        fireValue.setText(format(s.fire()));
-        frostValue.setText(format(s.frost()));
-        magicValue.setText(format(s.magic()));
-        volatilityValue.setText(format(s.volatility()));
+        mixturePanel.showMixture(engine.preview(steps));
     }
 
     private void finishExperiment() {
@@ -377,12 +287,8 @@ public final class MainFrame extends JFrame {
             long id = repository.saveExperiment(name, List.copyOf(steps), result);
             lastExperimentId = id;
             lastResult = result;
-            resultTitle.setText(result.name() + " · " + result.type());
-            MixtureSnapshot s = result.snapshot();
-            resultDescription.setText(result.description() + "\n\nИтог: " +
-                    "стабильность " + format(s.stability()) + ", токсичность " + format(s.toxicity()) +
-                    ", магия " + format(s.magic()) + ".");
-            saveRecipeButton.setEnabled(true);
+
+            mixturePanel.showResult(result);
             refreshHistory();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this,
@@ -397,7 +303,7 @@ public final class MainFrame extends JFrame {
         if (name == null) return;
         try {
             repository.markAsRecipe(lastExperimentId, name.trim());
-            saveRecipeButton.setEnabled(false);
+            mixturePanel.markRecipeSaved();
             refreshHistory();
             JOptionPane.showMessageDialog(this, "Рецепт «" + name.trim() + "» сохранён.");
         } catch (Exception ex) {
@@ -409,10 +315,6 @@ public final class MainFrame extends JFrame {
 
     private void refreshHistory() {
         historyPanel.refreshHistory();
-    }
-
-    private String format(double v) {
-        return String.format("%.1f", v);
     }
 
     @Override
