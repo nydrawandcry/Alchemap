@@ -1,4 +1,4 @@
-package view;
+package view.ingredients;
 
 import data.AlchemyRepository;
 import model.Ingredient;

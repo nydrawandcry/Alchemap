@@ -8,7 +8,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import view.history.HistoryPanel;
 import view.common.NameDialogs;
-import view.history.RecipePopup;
+import view.ingredients.IngredientDialog;
 
 import java.awt.*;
 import java.awt.event.*;
