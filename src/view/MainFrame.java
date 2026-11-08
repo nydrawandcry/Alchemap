@@ -3,14 +3,13 @@ package view;
 import data.AlchemyRepository;
 import engine.AlchemyEngine;
 import model.*;
-import model.potions.*;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-import view.history.HistoryTableModel;
+import view.history.HistoryPanel;
+import view.common.NameDialogs;
 import view.history.RecipePopup;
 
-import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.awt.event.*;
 import java.time.LocalDateTime;
@@ -49,11 +48,9 @@ public final class MainFrame extends JFrame {
     private final JLabel resultTitle = new JLabel("Эксперимент ещё не завершён");
     private final JTextArea resultDescription = new JTextArea("Соберите цепочку ингредиентов и действий, затем нажмите «Завершить эксперимент».");
     private final JButton saveRecipeButton = new JButton("Сохранить как рецепт");
-    private final JTable historyTable = new JTable();
-    private final HistoryTableModel historyModel = new HistoryTableModel();
     private final JLabel modeLabel;
     private PotionRulesPanel potionRulesPanel;
-    private final JButton renameExperimentButton = new JButton("Переименовать опыт");
+    private HistoryPanel historyPanel;
 
     private long lastExperimentId = -1;
     private AlchemyResult lastResult;
@@ -292,100 +289,16 @@ public final class MainFrame extends JFrame {
 
     private JComponent buildHistory() {
         JPanel panel = card("Журнал опытов и сохранённые рецепты");
-        panel.setLayout(new BorderLayout(8, 8));
-        historyTable.setModel(historyModel);
-        historyTable.setRowHeight(28);
-        historyTable.setFillsViewportHeight(true);
-        historyTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        historyTable.setAutoCreateRowSorter(true);
-        historyTable.getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
-            @Override public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean selected, boolean focus, int row, int column) {
-                super.getTableCellRendererComponent(table, value, selected, focus, row, column);
-                setToolTipText("—".equals(value) ? "Этот опыт не отмечен как рецепт."
-                        : "Нажмите, чтобы открыть шаги рецепта.");
-                if (!selected && !"—".equals(value)) setForeground(ACCENT);
-                return this;
-            }
-        });
-        historyTable.addMouseListener(new MouseAdapter() {
-            @Override public void mouseClicked(MouseEvent e) {
-                if (!SwingUtilities.isLeftMouseButton(e)) return;
-                int row = historyTable.rowAtPoint(e.getPoint());
-                int column = historyTable.columnAtPoint(e.getPoint());
-                if (row < 0 || column < 0) return;
-                historyTable.setRowSelectionInterval(row, row);
-                int modelColumn = historyTable.convertColumnIndexToModel(column);
-                if (modelColumn == 4 && e.getClickCount() == 1) {
-                    showRecipe(row, e.getX(), e.getY() + historyTable.getRowHeight());
-                } else if (modelColumn == 1 && e.getClickCount() == 2) {
-                    renameSelectedExperiment();
-                }
-            }
-        });
-        historyTable.getInputMap().put(KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, 0), "openRecipe");
-        historyTable.getActionMap().put("openRecipe", new AbstractAction() {
-            @Override public void actionPerformed(ActionEvent e) {
-                int row = historyTable.getSelectedRow();
-                if (row >= 0) {
-                    int column = historyTable.convertColumnIndexToView(4);
-                    Rectangle cell = historyTable.getCellRect(row, column, true);
-                    showRecipe(row, cell.x, cell.y + cell.height);
-                }
-            }
-        });
-        renameExperimentButton.setEnabled(false);
-        historyTable.getSelectionModel().addListSelectionListener(e ->
-                renameExperimentButton.setEnabled(historyTable.getSelectedRow() >= 0));
-        renameExperimentButton.addActionListener(e -> renameSelectedExperiment());
-        panel.add(new JScrollPane(historyTable), BorderLayout.CENTER);
-        JPanel actions = new JPanel(new BorderLayout(8, 0));
-        JButton refresh = new JButton("Обновить журнал");
-        refresh.addActionListener(e -> refreshHistory());
-        actions.add(refresh, BorderLayout.CENTER);
-        actions.add(renameExperimentButton, BorderLayout.EAST);
-        panel.add(actions, BorderLayout.SOUTH);
+        panel.setLayout(new BorderLayout());
+
+        historyPanel = new HistoryPanel(repository, ACCENT);
+        panel.add(historyPanel, BorderLayout.CENTER);
+
         return panel;
     }
 
-    private void showRecipe(int viewRow, int x, int y) {
-        HistoryEntry entry = historyModel.entryAt(historyTable.convertRowIndexToModel(viewRow));
-        if (!entry.savedRecipe()) return;
-        try {
-            RecipeDetails recipe = repository.loadRecipe(entry.id());
-            new RecipePopup(recipe).show(historyTable, x, y);
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Не удалось открыть рецепт: " + ex.getMessage(),
-                    "Рецепт", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
-    private void renameSelectedExperiment() {
-        int row = historyTable.getSelectedRow();
-        if (row < 0) return;
-        HistoryEntry entry = historyModel.entryAt(historyTable.convertRowIndexToModel(row));
-        String newName = askName("Название опыта", entry.name());
-        if (newName == null || newName.equals(entry.name())) return;
-        try {
-            repository.renameExperiment(entry.id(), newName);
-            refreshHistory();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Не удалось переименовать опыт: " + ex.getMessage(),
-                    "Название опыта", JOptionPane.ERROR_MESSAGE);
-        }
-    }
-
     private String askName(String title, String initial) {
-        String value = initial;
-        while (true) {
-            value = (String) JOptionPane.showInputDialog(this, "Введите название (до 160 символов):",
-                    title, JOptionPane.PLAIN_MESSAGE, null, null, value);
-            if (value == null) return null;
-            try { return TextValidation.required(value, 160, title); }
-            catch (IllegalArgumentException ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), title, JOptionPane.WARNING_MESSAGE);
-            }
-        }
+        return NameDialogs.askName(this, title, initial);
     }
 
     private JPanel card(String titleText) {
@@ -557,22 +470,7 @@ public final class MainFrame extends JFrame {
     }
 
     private void refreshHistory() {
-        try {
-            long selectedId = -1;
-            int row = historyTable.getSelectedRow();
-            if (row >= 0) selectedId = historyModel.entryAt(historyTable.convertRowIndexToModel(row)).id();
-            historyModel.setRows(repository.loadHistory());
-            for (int i = 0; i < historyModel.getRowCount(); i++) {
-                if (historyModel.entryAt(i).id() == selectedId) {
-                    int viewRow = historyTable.convertRowIndexToView(i);
-                    historyTable.setRowSelectionInterval(viewRow, viewRow);
-                    break;
-                }
-            }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Не удалось загрузить журнал: " + ex.getMessage(),
-                    "Журнал опытов", JOptionPane.ERROR_MESSAGE);
-        }
+        historyPanel.refreshHistory();
     }
 
     private String format(double v) {
