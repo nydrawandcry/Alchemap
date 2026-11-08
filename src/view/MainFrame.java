@@ -59,8 +59,8 @@ public final class MainFrame extends JFrame {
     public MainFrame(AlchemyRepository repository, List<Ingredient> ingredients, String startupWarning) {
         super("Alchemap — алхимическая лаборатория");
         this.repository = repository;
-        this.ingredients = ingredients;
-        this.ingredientList = new JList<>(ingredients.toArray(Ingredient[]::new));
+        this.ingredients = new ArrayList<>(ingredients);
+        this.ingredientList = new JList<>(this.ingredients.toArray(Ingredient[]::new));
         this.modeLabel = new JLabel("Хранилище: " + repository.modeName());
 
         setDefaultCloseOperation(WindowConstants.DO_NOTHING_ON_CLOSE);
@@ -168,6 +168,10 @@ public final class MainFrame extends JFrame {
     private JPanel buildIngredientPanel() {
         JPanel panel = card("Ингредиенты");
         panel.setLayout(new BorderLayout(8, 8));
+
+        JButton createButton = primaryButton("Новый ингредиент");
+        createButton.addActionListener(e -> createIngredient());
+        panel.add(createButton, BorderLayout.NORTH);
 
         ingredientList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         ingredientList.setSelectedIndex(0);
@@ -636,5 +640,31 @@ public final class MainFrame extends JFrame {
                 default -> "";
             };
         }
+    }
+
+    /**
+     * Добавляет созданный ингредиент в каталог и выбирает его
+     */
+    private void createIngredient() {
+        Ingredient created =
+                new IngredientDialog(this, repository).showDialog();
+
+        if (created == null) return;
+
+        ingredients.add(created);
+
+        ingredients.sort(
+                java.util.Comparator.comparing(
+                        Ingredient::name,
+                        String.CASE_INSENSITIVE_ORDER
+                )
+        );
+
+        ingredientList.setListData(
+                ingredients.toArray(Ingredient[]::new)
+        );
+        ingredientList.setSelectedValue(created, true);
+
+        updateIngredientDescription();
     }
 }
