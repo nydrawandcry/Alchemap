@@ -2,6 +2,10 @@ package view.common;
 
 import javax.swing.JButton;
 import java.awt.Color;
+import javax.swing.JPanel;
+import javax.swing.BorderFactory;
+import javax.swing.border.EmptyBorder;
+import java.awt.Font;
 
 /**
  * Общие цвета и оформление основных кнопок приложения
@@ -22,5 +26,37 @@ public final class UiTheme {
         button.setForeground(Color.WHITE);
         button.setFocusPainted(false);
         return button;
+    }
+
+    /**
+     * Создаёт общую карточку с заголовком
+     */
+    public static JPanel card(String titleText) {
+        JPanel panel = new JPanel();
+        panel.setBackground(PANEL);
+
+        panel.setBorder(
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(
+                                new Color(72, 60, 88)
+                        ),
+                        new EmptyBorder(10, 10, 10, 10)
+                )
+        );
+
+        panel.setName(titleText);
+
+        panel.setBorder(
+                BorderFactory.createTitledBorder(
+                        panel.getBorder(),
+                        titleText,
+                        0,
+                        0,
+                        new Font(Font.SANS_SERIF, Font.BOLD, 14),
+                        TEXT
+                )
+        );
+
+        return panel;
     }
 }
