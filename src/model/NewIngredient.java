@@ -1,7 +1,6 @@
 package model;
 
 import model.potions.TextValidation;
-import org.w3c.dom.Text;
 
 import java.math.BigDecimal;
 import java.util.Objects;
@@ -33,6 +32,19 @@ public record NewIngredient(
         double stability
 ) {
 
+    /**
+     * Конструктор нового ингредиента
+     * @param name название
+     * @param category категория
+     * @param description описание
+     * @param healing лечение
+     * @param toxicity токсичность
+     * @param fire огонь
+     * @param frost холод
+     * @param volatility летучесть
+     * @param magic магия
+     * @param stability стабильность
+     */
     public NewIngredient {
         name = TextValidation.required(name, 100, "Название");
         category = TextValidation.required(category, 60, "Категория");
@@ -73,5 +85,24 @@ public record NewIngredient(
         }
 
         return value == 0 ? 0 : value;
+    }
+
+    /**
+     * Создаёт модель после получения постоянного идентификатора
+     * @param id уникальный идентификатор ингредиента
+     * @return созданный новый ингредиент для БД
+     */
+    public Ingredient toIngredient(int id) {
+        if (id <= 0) {
+            throw new IllegalArgumentException(
+                    "Некорректный ID ингредиента."
+            );
+        }
+
+        return new Ingredient(
+                id, name, category, description,
+                healing, toxicity, fire, frost,
+                volatility, magic, stability
+        );
     }
 }
