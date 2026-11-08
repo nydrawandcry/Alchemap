@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class DemoRepository implements AlchemyRepository {
-    private final List<Ingredient> ingredients = defaultIngredients();
+    private final List<Ingredient> ingredients = new ArrayList<>(defaultIngredients());
     private final List<HistoryEntry> history = new ArrayList<>();
     private final AtomicLong ids = new AtomicLong(1);
     private final Map<Long, RecipeDetails> details = new HashMap<>();
@@ -22,7 +22,36 @@ public final class DemoRepository implements AlchemyRepository {
 
     @Override
     public List<Ingredient> loadIngredients() {
-        return ingredients;
+        return List.copyOf(ingredients);
+    }
+
+    /**
+     * В демо-запуске приложения новый ингредиент хранится до завершения работы программы
+     * @param draft добавляемый ингредиент
+     * @return добавленный ингредиент
+     * @throws Exception исклчючение если чето не так пошло
+     */
+    @Override
+    public Ingredient createIngredient(NewIngredient draft) throws Exception {
+        boolean exists = ingredients.stream()
+                .anyMatch(i -> i.name().equalsIgnoreCase(draft.name()));
+
+        if (exists) {
+            throw new IllegalArgumentException(
+                    "Название ингредиента уже используется. "
+                            + "Выберите другое."
+            );
+        }
+
+        int id = ingredients.stream()
+                .mapToInt(Ingredient::id)
+                .max()
+                .orElse(0) + 1;
+
+        Ingredient created = draft.toIngredient(id);
+        ingredients.add(created);
+
+        return created;
     }
 
     @Override

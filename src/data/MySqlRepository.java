@@ -43,6 +43,60 @@ public final class MySqlRepository implements AlchemyRepository {
         return result;
     }
 
+    /**
+     * Добавляет ингредиент и возвращает назначенный базой ID
+     * @param draft добавляемый новый ингредиент
+     * @return добавленный ингредиент
+     * @throws SQLException исключение если шото пошло не так
+     */
+    @Override
+    public Ingredient createIngredient(NewIngredient draft)
+            throws SQLException {
+        String sql = """
+            INSERT INTO ingredients
+                (name, category, description, healing, toxicity,
+                 fire, frost, volatility, magic, stability, enabled)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(
+                sql, Statement.RETURN_GENERATED_KEYS)) {
+
+            ps.setString(1, draft.name());
+            ps.setString(2, draft.category());
+            ps.setString(3, draft.description());
+            ps.setDouble(4, draft.healing());
+            ps.setDouble(5, draft.toxicity());
+            ps.setDouble(6, draft.fire());
+            ps.setDouble(7, draft.frost());
+            ps.setDouble(8, draft.volatility());
+            ps.setDouble(9, draft.magic());
+            ps.setDouble(10, draft.stability());
+
+            ps.executeUpdate();
+
+            try (ResultSet keys = ps.getGeneratedKeys()) {
+                if (!keys.next()) {
+                    throw new SQLException(
+                            "MySQL не вернул ID ингредиента."
+                    );
+                }
+
+                return draft.toIngredient(keys.getInt(1));
+            }
+        } catch (SQLException ex) {
+            if (ex.getErrorCode() == 1062) {
+                throw new IllegalArgumentException(
+                        "Название ингредиента уже используется. "
+                                + "Выберите другое.",
+                        ex
+                );
+            }
+
+            throw ex;
+        }
+    }
+
     @Override
     public List<HistoryEntry> loadHistory() throws SQLException {
         String sql = """
