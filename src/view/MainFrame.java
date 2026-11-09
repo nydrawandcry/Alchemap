@@ -8,6 +8,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import view.history.HistoryPanel;
 import view.common.NameDialogs;
+import view.common.UiTheme;
+import view.laboratory.LaboratoryPanel;
 import view.ingredients.IngredientDialog;
 import view.ingredients.IngredientPanel;
 import view.mixture.MixturePanel;
@@ -55,7 +57,7 @@ public final class MainFrame extends JFrame {
         setSize(1360, 820);
         setLocationRelativeTo(null);
 
-        configureLook();
+        UiTheme.apply();
 
         mixturePanel = new MixturePanel(this::saveRecipe);
         experimentPanel = new ExperimentPanel(
@@ -81,24 +83,6 @@ public final class MainFrame extends JFrame {
         }
     }
 
-    private void configureLook() {
-        getContentPane().setBackground(BG);
-        UIManager.put("Panel.background", PANEL);
-        UIManager.put("Label.foreground", TEXT);
-        UIManager.put("Button.background", PANEL_2);
-        UIManager.put("Button.foreground", TEXT);
-        UIManager.put("List.background", PANEL_2);
-        UIManager.put("List.foreground", TEXT);
-        UIManager.put("Table.background", PANEL_2);
-        UIManager.put("Table.foreground", TEXT);
-        UIManager.put("Table.gridColor", new Color(75, 65, 88));
-        UIManager.put("TableHeader.background", PANEL);
-        UIManager.put("TableHeader.foreground", TEXT);
-        UIManager.put("TextArea.background", PANEL_2);
-        UIManager.put("TextArea.foreground", TEXT);
-        UIManager.put("Spinner.background", PANEL_2);
-    }
-
     private JComponent buildRoot() {
         JPanel root = new JPanel(new BorderLayout(12, 12));
         root.setBackground(BG);
@@ -107,7 +91,14 @@ public final class MainFrame extends JFrame {
         root.add(buildHeader(), BorderLayout.NORTH);
 
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("Лаборатория", buildLaboratory());
+        tabs.addTab(
+                "Лаборатория",
+                new LaboratoryPanel(
+                        ingredientPanel,
+                        experimentPanel,
+                        mixturePanel
+                )
+        );
         tabs.addTab("Журнал опытов", buildHistory());
         potionRulesPanel = new PotionRulesPanel(repository);
         tabs.addTab("Редактор мастера", potionRulesPanel);
@@ -133,39 +124,6 @@ public final class MainFrame extends JFrame {
         modeLabel.setForeground(MUTED);
         header.add(modeLabel, BorderLayout.EAST);
         return header;
-    }
-
-    private JComponent buildLaboratory() {
-        JPanel body = new JPanel(new GridBagLayout());
-        body.setBackground(BG);
-        GridBagConstraints c = new GridBagConstraints();
-        c.gridy = 0;
-        c.fill = GridBagConstraints.BOTH;
-        c.weighty = 1;
-        c.insets = new Insets(0, 0, 0, 10);
-
-        c.gridx = 0;
-        c.weightx = 0.26;
-        body.add(buildIngredientPanel(), c);
-
-        c.gridx = 1;
-        c.weightx = 0.44;
-        body.add(experimentPanel, c);
-
-        c.gridx = 2;
-        c.weightx = 0.30;
-        c.insets = new Insets(0, 0, 0, 0);
-        body.add(mixturePanel, c);
-        return body;
-    }
-
-    private JPanel buildIngredientPanel() {
-        JPanel panel = card("Ингредиенты");
-        panel.setLayout(new BorderLayout());
-
-        panel.add(ingredientPanel, BorderLayout.CENTER);
-
-        return panel;
     }
 
     private JComponent buildHistory() {
