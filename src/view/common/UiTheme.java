@@ -5,6 +5,7 @@ import java.awt.Color;
 import javax.swing.JPanel;
 import javax.swing.BorderFactory;
 import javax.swing.border.EmptyBorder;
+import javax.swing.UIManager;
 import java.awt.Font;
 
 /**
@@ -58,5 +59,33 @@ public final class UiTheme {
         );
 
         return panel;
+    }
+
+    /**
+     * Применяет общую тему до создания панелей
+     */
+    public static void apply() {
+        UIManager.put("Panel.background", PANEL);
+        UIManager.put("Label.foreground", TEXT);
+
+        UIManager.put("Button.background", PANEL_2);
+        UIManager.put("Button.foreground", TEXT);
+
+        UIManager.put("List.background", PANEL_2);
+        UIManager.put("List.foreground", TEXT);
+
+        UIManager.put("Table.background", PANEL_2);
+        UIManager.put("Table.foreground", TEXT);
+        UIManager.put(
+                "Table.gridColor",
+                new Color(75, 65, 88)
+        );
+
+        UIManager.put("TableHeader.background", PANEL);
+        UIManager.put("TableHeader.foreground", TEXT);
+
+        UIManager.put("TextArea.background", PANEL_2);
+        UIManager.put("TextArea.foreground", TEXT);
+        UIManager.put("Spinner.background", PANEL_2);
     }
 }
