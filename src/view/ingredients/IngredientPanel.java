@@ -7,6 +7,7 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.text.ParseException;
+import java.util.concurrent.ExecutionException;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -34,6 +35,9 @@ public final class IngredientPanel extends JPanel {
     private final JButton addButton =
             primaryButton("Добавить");
 
+    private final JButton deleteButton =
+            new JButton("Удалить ингредиент");
+
     public IngredientPanel(
             AlchemyRepository repository,
             List<Ingredient> ingredients,
@@ -54,7 +58,14 @@ public final class IngredientPanel extends JPanel {
         JButton createButton =
                 primaryButton("Новый ингредиент");
         createButton.addActionListener(e -> createIngredient());
-        add(createButton, BorderLayout.NORTH);
+        deleteButton.addActionListener(e -> deleteSelectedIngredient());
+
+        JPanel catalogActions = new JPanel(new GridLayout(2, 1, 0, 6));
+        catalogActions.setOpaque(false);
+        catalogActions.add(createButton);
+        catalogActions.add(deleteButton);
+
+        add(catalogActions, BorderLayout.NORTH);
 
         ingredientList.setSelectionMode(
                 ListSelectionModel.SINGLE_SELECTION
@@ -121,6 +132,7 @@ public final class IngredientPanel extends JPanel {
     private void updateIngredientDescription() {
         Ingredient selected = ingredientList.getSelectedValue();
         addButton.setEnabled(selected != null);
+        deleteButton.setEnabled(selected != null);
 
         if (selected == null) {
             ingredientDescription.setText("");
@@ -186,6 +198,113 @@ public final class IngredientPanel extends JPanel {
                 ingredients.toArray(Ingredient[]::new)
         );
         ingredientList.setSelectedValue(created, true);
+
+        updateIngredientDescription();
+    }
+
+    /**
+     * Скрывает ингредиент после успешной записи в хранилище
+     */
+    private void deleteSelectedIngredient() {
+        Ingredient selected = ingredientList.getSelectedValue();
+        if (selected == null) return;
+
+        int answer = JOptionPane.showOptionDialog(
+                this,
+                "Удалить ингредиент «" + selected.name() + "» из каталога?\n"
+                        + "В текущем опыте и сохранённых рецептах он останется.\n"
+                        + "Его название останется занятым.",
+                "Удаление ингредиента",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.QUESTION_MESSAGE,
+                null,
+                new String[]{"Удалить", "Отмена"},
+                "Отмена"
+        );
+
+        if (answer != 0) return;
+
+        Window owner = SwingUtilities.getWindowAncestor(this);
+
+        JDialog progress = new JDialog(
+                owner,
+                "Удаление ингредиента",
+                Dialog.ModalityType.APPLICATION_MODAL
+        );
+        progress.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+
+        JPanel content = new JPanel(new BorderLayout(0, 10));
+        content.setBorder(new EmptyBorder(16, 16, 16, 16));
+        content.add(
+                new JLabel("Удаляем ингредиент…"),
+                BorderLayout.NORTH
+        );
+
+        JProgressBar bar = new JProgressBar();
+        bar.setIndeterminate(true);
+        content.add(bar, BorderLayout.CENTER);
+
+        progress.setContentPane(content);
+        progress.pack();
+        progress.setResizable(false);
+        progress.setLocationRelativeTo(this);
+
+        SwingWorker<Void, Void> worker = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                repository.deleteIngredient(selected.id());
+                return null;
+            }
+
+            @Override
+            protected void done() {
+                progress.dispose();
+            }
+        };
+
+        worker.execute();
+        progress.setVisible(true);
+
+        try {
+            worker.get();
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Ожидание прервано. Перезапустите приложение, "
+                            + "чтобы проверить состояние каталога.",
+                    "Удаление ингредиента",
+                    JOptionPane.WARNING_MESSAGE
+            );
+            return;
+        } catch (ExecutionException ex) {
+            JOptionPane.showMessageDialog(
+                    this,
+                    "Не удалось подтвердить удаление. "
+                            + "Проверьте подключение к БД.\n"
+                            + "Если связь оборвалась, после восстановления "
+                            + "перезапустите приложение и проверьте каталог.\n\n"
+                            + ex.getCause().getMessage(),
+                    "Удаление ингредиента",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            return;
+        }
+
+        int oldIndex = ingredientList.getSelectedIndex();
+
+        ingredients.removeIf(i -> i.id() == selected.id());
+
+        ingredientList.setListData(
+                ingredients.toArray(Ingredient[]::new)
+        );
+
+        if (!ingredients.isEmpty()) {
+            ingredientList.setSelectedIndex(
+                    Math.min(oldIndex, ingredients.size() - 1)
+            );
+        }
 
         updateIngredientDescription();
     }

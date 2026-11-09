@@ -4,15 +4,12 @@ import model.*;
 import model.potions.*;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
 
 public final class DemoRepository implements AlchemyRepository {
     private final List<Ingredient> ingredients = new ArrayList<>(defaultIngredients());
+    private final Set<Integer> deletedIngredientIds = new HashSet<>();
     private final List<HistoryEntry> history = new ArrayList<>();
     private final AtomicLong ids = new AtomicLong(1);
     private final Map<Long, RecipeDetails> details = new HashMap<>();
@@ -22,7 +19,9 @@ public final class DemoRepository implements AlchemyRepository {
 
     @Override
     public List<Ingredient> loadIngredients() {
-        return List.copyOf(ingredients);
+        return ingredients.stream()
+                .filter(i -> !deletedIngredientIds.contains(i.id()))
+                .toList();
     }
 
     /**
@@ -38,7 +37,7 @@ public final class DemoRepository implements AlchemyRepository {
 
         if (exists) {
             throw new IllegalArgumentException(
-                    "Название ингредиента уже используется. "
+                    "Название уже занято, возможно удалённым ингредиентом. "
                             + "Выберите другое."
             );
         }
@@ -52,6 +51,17 @@ public final class DemoRepository implements AlchemyRepository {
         ingredients.add(created);
 
         return created;
+    }
+
+    @Override
+    public void deleteIngredient(int ingredientId) {
+        if (ingredientId <= 0) {
+            throw new IllegalArgumentException("Некорректный ID ингредиента.");
+        }
+
+        if (ingredients.stream().anyMatch(i -> i.id() == ingredientId)) {
+            deletedIngredientIds.add(ingredientId);
+        }
     }
 
     @Override

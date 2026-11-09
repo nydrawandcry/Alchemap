@@ -87,13 +87,33 @@ public final class MySqlRepository implements AlchemyRepository {
         } catch (SQLException ex) {
             if (ex.getErrorCode() == 1062) {
                 throw new IllegalArgumentException(
-                        "Название ингредиента уже используется. "
+                        "Название уже занято, возможно удалённым ингредиентом. "
                                 + "Выберите другое.",
                         ex
                 );
             }
 
             throw ex;
+        }
+    }
+
+    @Override
+    public void deleteIngredient(int ingredientId) throws Exception {
+        if (ingredientId <= 0) {
+            throw new IllegalArgumentException(
+                    "Некорректный ID ингредиента."
+            );
+        }
+
+        String sql = """
+            UPDATE ingredients
+            SET enabled = FALSE
+            WHERE id = ?
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, ingredientId);
+            ps.executeUpdate();
         }
     }
 
