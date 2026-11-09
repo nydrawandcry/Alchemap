@@ -11,6 +11,8 @@ import view.common.NameDialogs;
 import view.ingredients.IngredientDialog;
 import view.ingredients.IngredientPanel;
 import view.mixture.MixturePanel;
+import view.experiment.ExperimentPanel;
+import view.experiment.ExperimentActionListener;
 
 import static view.common.UiTheme.*;
 
@@ -26,8 +28,7 @@ public final class MainFrame extends JFrame {
     private final AlchemyEngine engine = new AlchemyEngine();
     private final List<ExperimentStep> steps = new ArrayList<>();
 
-    private final DefaultListModel<ExperimentStep> stepModel = new DefaultListModel<>();
-    private final JList<ExperimentStep> stepList = new JList<>(stepModel);
+    private final ExperimentPanel experimentPanel;
 
     private final JLabel modeLabel;
     private PotionRulesPanel potionRulesPanel;
@@ -57,6 +58,9 @@ public final class MainFrame extends JFrame {
         configureLook();
 
         mixturePanel = new MixturePanel(this::saveRecipe);
+        experimentPanel = new ExperimentPanel(
+                new ExperimentHandler()
+        );
 
         ingredientPanel = new IngredientPanel(
                 repository,
@@ -146,7 +150,7 @@ public final class MainFrame extends JFrame {
 
         c.gridx = 1;
         c.weightx = 0.44;
-        body.add(buildExperimentPanel(), c);
+        body.add(experimentPanel, c);
 
         c.gridx = 2;
         c.weightx = 0.30;
@@ -161,50 +165,6 @@ public final class MainFrame extends JFrame {
 
         panel.add(ingredientPanel, BorderLayout.CENTER);
 
-        return panel;
-    }
-
-    private JPanel buildExperimentPanel() {
-        JPanel panel = card("Рабочая область · цепочка эксперимента");
-        panel.setLayout(new BorderLayout(8, 8));
-
-        stepList.setCellRenderer(new StepRenderer());
-        panel.add(new JScrollPane(stepList), BorderLayout.CENTER);
-
-        JPanel south = new JPanel();
-        south.setOpaque(false);
-        south.setLayout(new BoxLayout(south, BoxLayout.Y_AXIS));
-
-        JLabel actionLabel = new JLabel("Действия с текущей смесью");
-        actionLabel.setForeground(MUTED);
-        south.add(actionLabel);
-        south.add(Box.createVerticalStrut(6));
-
-        JPanel actions = new JPanel(new GridLayout(3, 3, 6, 6));
-        actions.setOpaque(false);
-        for (AlchemyAction action : AlchemyAction.values()) {
-            JButton b = new JButton(action.label());
-            b.setToolTipText(action.description());
-            b.addActionListener(e -> addAction(action));
-            actions.add(b);
-        }
-        south.add(actions);
-        south.add(Box.createVerticalStrut(8));
-
-        JPanel controls = new JPanel(new GridLayout(1, 3, 6, 0));
-        controls.setOpaque(false);
-        JButton undo = new JButton("Удалить последний шаг");
-        undo.addActionListener(e -> undoStep());
-        JButton clear = new JButton("Новый эксперимент");
-        clear.addActionListener(e -> clearExperiment());
-        JButton finish = primaryButton("Завершить эксперимент");
-        finish.addActionListener(e -> finishExperiment());
-        controls.add(undo);
-        controls.add(clear);
-        controls.add(finish);
-        south.add(controls);
-
-        panel.add(south, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -232,25 +192,18 @@ public final class MainFrame extends JFrame {
 
     private void addStep(ExperimentStep step) {
         steps.add(step);
-        stepModel.addElement(step);
 
         lastExperimentId = -1;
         lastResult = null;
 
         mixturePanel.showPending(false);
         updatePreview();
-
-        int last = stepModel.size() - 1;
-        if (last >= 0) {
-            stepList.ensureIndexIsVisible(last);
-        }
     }
 
     private void undoStep() {
         if (steps.isEmpty()) return;
 
         steps.remove(steps.size() - 1);
-        stepModel.remove(stepModel.size() - 1);
 
         lastExperimentId = -1;
         lastResult = null;
@@ -261,7 +214,6 @@ public final class MainFrame extends JFrame {
 
     private void clearExperiment() {
         steps.clear();
-        stepModel.clear();
 
         lastExperimentId = -1;
         lastResult = null;
@@ -271,6 +223,7 @@ public final class MainFrame extends JFrame {
     }
 
     private void updatePreview() {
+        experimentPanel.showSteps(steps);
         mixturePanel.showMixture(engine.preview(steps));
     }
 
@@ -323,16 +276,30 @@ public final class MainFrame extends JFrame {
         super.dispose();
     }
 
-    private static final class StepRenderer extends DefaultListCellRenderer {
+    /**
+     * Связывает события панели с управлением экспериментом
+     */
+    private final class ExperimentHandler
+            implements ExperimentActionListener {
+
         @Override
-        public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean selected, boolean focus) {
-            JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, selected, focus);
-            if (value instanceof ExperimentStep step) {
-                l.setText(String.format("%02d   %s", index + 1, step.displayText()));
-                l.setBorder(new EmptyBorder(7, 8, 7, 8));
-                if (!selected && value instanceof ActionStep) l.setForeground(new Color(211, 180, 247));
-            }
-            return l;
+        public void actionRequested(AlchemyAction action) {
+            addAction(action);
+        }
+
+        @Override
+        public void undoRequested() {
+            undoStep();
+        }
+
+        @Override
+        public void newExperimentRequested() {
+            clearExperiment();
+        }
+
+        @Override
+        public void finishRequested() {
+            finishExperiment();
         }
     }
 }
