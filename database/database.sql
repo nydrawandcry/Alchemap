@@ -67,7 +67,7 @@ CREATE TABLE experiment_steps (
     CONSTRAINT fk_step_experiment
         FOREIGN KEY (experiment_id) REFERENCES experiments(id) ON DELETE CASCADE,
     CONSTRAINT fk_step_ingredient
-        FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE RESTRICT,
+        FOREIGN KEY (ingredient_id) REFERENCES ingredients(id) ON DELETE SET NULL,
     CONSTRAINT fk_step_action
         FOREIGN KEY (action_code) REFERENCES operations(code) ON DELETE RESTRICT,
     UNIQUE KEY uq_experiment_order (experiment_id, step_order)

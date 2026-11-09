@@ -87,7 +87,7 @@ public final class MySqlRepository implements AlchemyRepository {
         } catch (SQLException ex) {
             if (ex.getErrorCode() == 1062) {
                 throw new IllegalArgumentException(
-                        "Название уже занято, возможно удалённым ингредиентом. "
+                        "Название ингредиента уже используется. "
                                 + "Выберите другое.",
                         ex
                 );
@@ -97,23 +97,43 @@ public final class MySqlRepository implements AlchemyRepository {
         }
     }
 
+    /**
+     * Полностью удаляет ингредиент, сохраняя историю опытов
+     */
     @Override
-    public void deleteIngredient(int ingredientId) throws Exception {
+    public void deleteIngredient(int ingredientId) throws SQLException {
         if (ingredientId <= 0) {
             throw new IllegalArgumentException(
                     "Некорректный ID ингредиента."
             );
         }
 
-        String sql = """
-            UPDATE ingredients
-            SET enabled = FALSE
-            WHERE id = ?
-            """;
+        String sql = "DELETE FROM ingredients WHERE id = ?";
 
         try (PreparedStatement ps = connection.prepareStatement(sql)) {
             ps.setInt(1, ingredientId);
             ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Возвращает существующий ID или null. Вызывается внутри транзакции
+     */
+    private Integer findIngredientIdForStep(int ingredientId)
+            throws SQLException {
+        String sql = """
+            SELECT id
+            FROM ingredients
+            WHERE id = ?
+            FOR SHARE
+            """;
+
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, ingredientId);
+
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() ? rs.getInt("id") : null;
+            }
         }
     }
 
@@ -188,7 +208,17 @@ public final class MySqlRepository implements AlchemyRepository {
                     ps.setInt(2, order++);
                     if (step instanceof IngredientAdditionStep add) {
                         ps.setString(3, "INGREDIENT");
-                        ps.setInt(4, add.ingredient().id());
+
+                        Integer ingredientId = findIngredientIdForStep(
+                                add.ingredient().id()
+                        );
+
+                        if (ingredientId == null) {
+                            ps.setNull(4, Types.INTEGER);
+                        } else {
+                            ps.setInt(4, ingredientId);
+                        }
+
                         ps.setDouble(5, add.quantity());
                         ps.setNull(6, Types.VARCHAR);
                     } else if (step instanceof ActionStep action) {

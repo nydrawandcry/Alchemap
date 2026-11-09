@@ -6,10 +6,16 @@ import model.potions.*;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public final class DemoRepository implements AlchemyRepository {
     private final List<Ingredient> ingredients = new ArrayList<>(defaultIngredients());
-    private final Set<Integer> deletedIngredientIds = new HashSet<>();
+    private final AtomicInteger ingredientIds = new AtomicInteger(
+            ingredients.stream()
+                    .mapToInt(Ingredient::id)
+                    .max()
+                    .orElse(0) + 1
+    );
     private final List<HistoryEntry> history = new ArrayList<>();
     private final AtomicLong ids = new AtomicLong(1);
     private final Map<Long, RecipeDetails> details = new HashMap<>();
@@ -19,9 +25,7 @@ public final class DemoRepository implements AlchemyRepository {
 
     @Override
     public List<Ingredient> loadIngredients() {
-        return ingredients.stream()
-                .filter(i -> !deletedIngredientIds.contains(i.id()))
-                .toList();
+        return List.copyOf(ingredients);
     }
 
     /**
@@ -37,15 +41,12 @@ public final class DemoRepository implements AlchemyRepository {
 
         if (exists) {
             throw new IllegalArgumentException(
-                    "Название уже занято, возможно удалённым ингредиентом. "
+                    "Название ингредиента уже используется. "
                             + "Выберите другое."
             );
         }
 
-        int id = ingredients.stream()
-                .mapToInt(Ingredient::id)
-                .max()
-                .orElse(0) + 1;
+        int id = ingredientIds.getAndIncrement();
 
         Ingredient created = draft.toIngredient(id);
         ingredients.add(created);
@@ -59,9 +60,7 @@ public final class DemoRepository implements AlchemyRepository {
             throw new IllegalArgumentException("Некорректный ID ингредиента.");
         }
 
-        if (ingredients.stream().anyMatch(i -> i.id() == ingredientId)) {
-            deletedIngredientIds.add(ingredientId);
-        }
+        ingredients.removeIf(i -> i.id() == ingredientId);
     }
 
     @Override

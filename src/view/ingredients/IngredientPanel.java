@@ -211,9 +211,11 @@ public final class IngredientPanel extends JPanel {
 
         int answer = JOptionPane.showOptionDialog(
                 this,
-                "Удалить ингредиент «" + selected.name() + "» из каталога?\n"
-                        + "В текущем опыте и сохранённых рецептах он останется.\n"
-                        + "Его название останется занятым.",
+                "Полностью удалить ингредиент «" + selected.name() + "»?\n"
+                        + "Существующие шаги текущего опыта и записи "
+                        + "в рецептах сохранятся.\n"
+                        + "После удаления можно создать новый ингредиент "
+                        + "с таким же названием.",
                 "Удаление ингредиента",
                 JOptionPane.YES_NO_OPTION,
                 JOptionPane.QUESTION_MESSAGE,
