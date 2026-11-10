@@ -146,6 +146,11 @@ public final class DemoRepository implements AlchemyRepository {
         return "демо-режим (без MySQL)";
     }
 
+    @Override
+    public boolean isPersistent() {
+        return false;
+    }
+
     public static List<Ingredient> defaultIngredients() {
         return List.of(
                 new Ingredient(1, "Лунная трава", "Трава", "Светлая трава, усиливающая восстановительные настои.", 5, 0.5, 0, 1, 1, 2, 3),

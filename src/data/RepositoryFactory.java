@@ -1,12 +1,10 @@
 package data;
 
-import data.AlchemyRepository;
-import data.DemoRepository;
-
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Properties;
 
 public final class RepositoryFactory {
@@ -14,26 +12,25 @@ public final class RepositoryFactory {
 
     public record Result(AlchemyRepository repository, String warning) {}
 
-    public static Result create() {
+    public static Result create() throws Exception {
         Properties config = new Properties();
         Path path = Path.of("config.properties");
         if (Files.exists(path)) {
-            try (InputStream in = Files.newInputStream(path)) {
-                config.load(in);
-            } catch (IOException ignored) {
+            try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8)) {
+                config.load(reader);
             }
         }
 
-        boolean enabled = Boolean.parseBoolean(config.getProperty("db.enabled", "false"));
-        if (!enabled) {
-            return new Result(new DemoRepository(), "MySQL отключён в config.properties. Используется демонстрационный режим.");
-        }
-
-        try {
-            return new Result(new data.MySqlRepository(config), null);
-        } catch (Exception ex) {
-            String msg = "Не удалось подключиться к MySQL: " + ex.getMessage() + ". Запущен демонстрационный режим.";
-            return new Result(new DemoRepository(), msg);
-        }
+        String type = config.getProperty("storage.type", "h2")
+                .trim().toLowerCase(Locale.ROOT);
+        return switch (type) {
+            case "h2" -> new Result(new H2Repository(), null);
+            case "mysql" -> new Result(new MySqlRepository(config), null);
+            case "demo" -> new Result(new DemoRepository(),
+                    "Демонстрационный режим: данные сохраняются только до закрытия приложения.");
+            default -> throw new IllegalArgumentException(
+                    "Неизвестный storage.type: " + type + ". Допустимы h2, mysql, demo."
+            );
+        };
     }
 }

@@ -212,7 +212,7 @@ public final class PotionRulesPanel extends JPanel {
         dirty = false;
         populating = false;
         status.setText("Правки применяются к будущим опытам; сохранённые результаты остаются прежними."
-                + (repository.modeName().equals("MySQL") ? "" : " В демо изменения действуют до закрытия приложения."));
+                + (repository.isPersistent() ? "" : " В демо изменения действуют до закрытия приложения."));
     }
 
     PotionRule editedRule() {
@@ -234,7 +234,7 @@ public final class PotionRulesPanel extends JPanel {
             dirty = false;
             reload(id);
             status.setText("Результат сохранён. Он участвует в следующих опытах."
-                    + (repository.modeName().equals("MySQL") ? "" : " Демо: до закрытия приложения."));
+                    + (repository.isPersistent() ? "" : " Демо: до закрытия приложения."));
         } catch (Exception ex) { error(ex); }
     }
 
@@ -254,7 +254,7 @@ public final class PotionRulesPanel extends JPanel {
             else selectNew(new PotionRule(0, "Новое зелье", "Зелье", "", 100, true, List.of()));
         } catch (Exception ex) {
             populating = false;
-            status.setText("Правила не загружены. Выполните database/migration-v2.sql в MySQL и нажмите «Обновить».");
+            status.setText("Правила не загружены. Проверьте хранилище и нажмите «Обновить».");
             status.setToolTipText(ex.getMessage());
         }
     }

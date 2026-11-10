@@ -17,5 +17,8 @@ public interface AlchemyRepository extends AutoCloseable {
     List<PotionRule> loadPotionRules() throws Exception;
     long savePotionRule(PotionRule rule) throws Exception;
     String modeName();
+    default boolean isPersistent() {
+        return true;
+    }
     @Override default void close() throws Exception {}
 }

@@ -1,34 +1,43 @@
-import data.*;
+import data.AlchemyRepository;
+import data.RepositoryFactory;
 import model.Ingredient;
 import view.MainFrame;
 
-import javax.swing.*;
+import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import java.util.List;
 
 public final class AlchemapApplication {
     private AlchemapApplication() {}
 
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            data.RepositoryFactory.Result factory = data.RepositoryFactory.create();
-            AlchemyRepository repository = factory.repository();
-            String warning = factory.warning();
-            List<Ingredient> ingredients;
+        SwingUtilities.invokeLater(AlchemapApplication::start);
+    }
 
-            try {
-                ingredients = repository.loadIngredients();
-                if (ingredients.isEmpty()) throw new IllegalStateException("таблица ingredients пуста");
-            } catch (Exception ex) {
-                try { repository.close(); } catch (Exception ignored) {}
-                repository = new DemoRepository();
-                ingredients = DemoRepository.defaultIngredients();
-                String additional = "База доступна, но данные загрузить не удалось: " + ex.getMessage() +
-                        ". Используется демонстрационный набор ингредиентов.";
-                warning = warning == null ? additional : warning + "\n" + additional;
-            }
+    private static void start() {
+        AlchemyRepository repository = null;
+        try {
+            RepositoryFactory.Result factory = RepositoryFactory.create();
+            repository = factory.repository();
+            List<Ingredient> ingredients = repository.loadIngredients();
 
-            MainFrame frame = new MainFrame(repository, ingredients, warning);
+            MainFrame frame = new MainFrame(
+                    repository, ingredients, factory.warning()
+            );
             frame.setVisible(true);
-        });
+        } catch (Exception ex) {
+            if (repository != null) {
+                try { repository.close(); }
+                catch (Exception closeError) { ex.addSuppressed(closeError); }
+            }
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Не удалось открыть хранилище Alchemap.\n"
+                            + "Если приложение уже запущено, закройте другое окно и повторите запуск.\n\n"
+                            + ex.getMessage(),
+                    "Запуск Alchemap",
+                    JOptionPane.ERROR_MESSAGE
+            );
+        }
     }
 }
