@@ -43,6 +43,18 @@ if (-not (Test-Path -LiteralPath $jar -PathType Leaf)) {
     throw 'target\alchemap.jar was not found. Run mvn clean package first.'
 }
 
+$icon = Join-Path $PSScriptRoot 'alchemap.ico'
+if (-not (Test-Path -LiteralPath $icon -PathType Leaf)) {
+    throw 'Place the Windows icon at packaging\alchemap.ico before packaging.'
+}
+$iconBytes = [System.IO.File]::ReadAllBytes($icon)
+if ($iconBytes.Length -lt 6 -or
+    $iconBytes[0] -ne 0 -or $iconBytes[1] -ne 0 -or
+    $iconBytes[2] -ne 1 -or $iconBytes[3] -ne 0 -or
+    ($iconBytes[4] -eq 0 -and $iconBytes[5] -eq 0)) {
+    throw 'packaging\alchemap.ico must be a valid ICO file, not a renamed PNG or SVG.'
+}
+
 $originalPath = $env:Path
 try {
     if ($Package -eq 'Installer') {
@@ -75,6 +87,7 @@ try {
         '--app-version', $version,
         '--vendor', 'nydrawandcry',
         '--description', 'Alchemy laboratory for D&D',
+        '--icon', $icon,
         '--input', $packageInput,
         '--main-jar', 'alchemap.jar',
         '--main-class', 'AlchemapApplication',
