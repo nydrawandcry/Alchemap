@@ -2,6 +2,7 @@ import data.AlchemyRepository;
 import data.RepositoryFactory;
 import model.Ingredient;
 import view.MainFrame;
+import view.common.UiTheme;
 
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
@@ -15,6 +16,7 @@ public final class AlchemapApplication {
     }
 
     private static void start() {
+        UiTheme.apply();
         AlchemyRepository repository = null;
         try {
             RepositoryFactory.Result factory = RepositoryFactory.create();

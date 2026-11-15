@@ -3,6 +3,7 @@ package view.experiment;
 import model.ActionStep;
 import model.AlchemyAction;
 import model.ExperimentStep;
+import view.common.SectionCard;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -28,10 +29,9 @@ public final class ExperimentPanel extends JPanel {
         Objects.requireNonNull(listener);
         setOpaque(false);
 
-        JPanel content = card(
-                "Рабочая область · цепочка эксперимента"
-        );
-        content.setLayout(new BorderLayout(8, 8));
+        SectionCard card = card("Цепочка эксперимента");
+        JPanel content = card.body();
+        content.setLayout(new BorderLayout(scale(10), scale(14)));
 
         stepList.setCellRenderer(new StepRenderer());
         content.add(
@@ -48,6 +48,7 @@ public final class ExperimentPanel extends JPanel {
         JLabel actionLabel =
                 new JLabel("Действия с текущей смесью");
         actionLabel.setForeground(MUTED);
+        actionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         south.add(actionLabel);
         south.add(Box.createVerticalStrut(6));
@@ -56,9 +57,11 @@ public final class ExperimentPanel extends JPanel {
                 new GridLayout(3, 3, 6, 6)
         );
         actions.setOpaque(false);
+        actions.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         for (AlchemyAction action : AlchemyAction.values()) {
             JButton button = new JButton(action.label());
+            button.setMargin(new Insets(scale(6), scale(6), scale(6), scale(6)));
             button.setToolTipText(action.description());
 
             button.addActionListener(
@@ -73,8 +76,10 @@ public final class ExperimentPanel extends JPanel {
 
         JPanel controls = new JPanel(new BorderLayout(0, 6));
         controls.setOpaque(false);
+        controls.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton undo = new JButton("Удалить последний шаг");
+        JButton undo = new JButton("Отменить шаг");
+        undo.setToolTipText("Удалить последний шаг эксперимента");
         undo.addActionListener(e -> listener.undoRequested());
 
         JButton clear = new JButton("Новый эксперимент");
@@ -99,7 +104,7 @@ public final class ExperimentPanel extends JPanel {
         south.add(controls);
 
         content.add(south, BorderLayout.SOUTH);
-        add(content, BorderLayout.CENTER);
+        add(card, BorderLayout.CENTER);
     }
 
     /**

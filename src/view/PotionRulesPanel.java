@@ -12,6 +12,8 @@ import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import static view.common.UiTheme.primaryButton;
+
 /** Локальный редактор правил кампании. Изменения действуют на следующие завершённые опыты. */
 public final class PotionRulesPanel extends JPanel {
     private static final String NUMBER = "Числом";
@@ -70,9 +72,8 @@ public final class PotionRulesPanel extends JPanel {
         JPanel editor = new JPanel(new BorderLayout(8, 8));
         editor.add(buildForm(), BorderLayout.NORTH);
         editor.add(buildConditions(), BorderLayout.CENTER);
-        JButton save = button("Сохранить результат", this::save);
-        save.setBackground(new Color(153, 109, 210));
-        save.setForeground(Color.WHITE);
+        JButton save = primaryButton("Сохранить результат");
+        save.addActionListener(e -> save());
         editor.add(save, BorderLayout.SOUTH);
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, editor);
         split.setResizeWeight(0.28);
@@ -124,7 +125,6 @@ public final class PotionRulesPanel extends JPanel {
                 + "Для признаков «Жидкая смесь», «Было охлаждение» и т. п.: 1 — да, 0 — нет.</html>");
         help.setBorder(new EmptyBorder(4, 4, 6, 4));
         panel.add(help, BorderLayout.NORTH);
-        table.setRowHeight(29);
         table.getTableHeader().setReorderingAllowed(false);
         table.putClientProperty("terminateEditOnFocusLost", true);
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);

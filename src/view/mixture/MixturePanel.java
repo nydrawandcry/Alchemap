@@ -2,6 +2,7 @@ package view.mixture;
 
 import model.AlchemyResult;
 import model.MixtureSnapshot;
+import view.common.SectionCard;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
@@ -25,7 +26,8 @@ public final class MixturePanel extends JPanel {
     private final JLabel magicValue = valueLabel();
     private final JLabel volatilityValue = valueLabel();
 
-    private final JLabel resultTitle = new JLabel();
+    private final JTextArea resultTitle = new JTextArea();
+    private final JLabel resultType = new JLabel();
     private final JTextArea resultDescription = new JTextArea();
 
     private final JButton saveRecipeButton =
@@ -35,11 +37,10 @@ public final class MixturePanel extends JPanel {
         Objects.requireNonNull(listener);
 
         setOpaque(false);
-        setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+        setLayout(new BorderLayout(0, scale(12)));
 
-        add(buildMixtureCard());
-        add(Box.createVerticalStrut(10));
-        add(buildResultCard());
+        add(buildMixtureCard(), BorderLayout.NORTH);
+        add(buildResultCard(), BorderLayout.CENTER);
 
         saveRecipeButton.addActionListener(
                 e -> listener.recipeSaveRequested()
@@ -48,9 +49,23 @@ public final class MixturePanel extends JPanel {
         showPending(true);
     }
 
+    @Override
+    public Dimension getPreferredSize() {
+        Dimension size = super.getPreferredSize();
+        // Длина названия и описания результата не меняет ширину колонок.
+        size.width = scale(340);
+        return size;
+    }
+
+    @Override
+    public Dimension getMinimumSize() {
+        return new Dimension(scale(300), scale(540));
+    }
+
     private JPanel buildMixtureCard() {
-        JPanel state = card("Текущая смесь");
-        state.setLayout(new GridLayout(10, 2, 6, 7));
+        SectionCard card = card("Текущая смесь");
+        JPanel state = card.body();
+        state.setLayout(new GridLayout(10, 2, scale(6), scale(6)));
 
         addMetric(state, "Состояние", stateValue);
         addMetric(state, "Температура", temperatureValue);
@@ -63,37 +78,46 @@ public final class MixturePanel extends JPanel {
         addMetric(state, "Магия", magicValue);
         addMetric(state, "Летучесть", volatilityValue);
 
-        state.setMaximumSize(
-                new Dimension(Integer.MAX_VALUE, 310)
-        );
-
-        return state;
+        return card;
     }
 
     private JPanel buildResultCard() {
-        JPanel result = card("Результат");
-        result.setLayout(new BorderLayout(6, 8));
+        SectionCard card = card("Результат");
+        JPanel result = card.body();
+        result.setLayout(new BorderLayout(scale(6), scale(10)));
 
-        resultTitle.setFont(
-                new Font(Font.SANS_SERIF, Font.BOLD, 18)
-        );
+        resultTitle.setEditable(false);
+        resultTitle.setLineWrap(true);
+        resultTitle.setWrapStyleWord(true);
+        resultTitle.setColumns(20);
+        resultTitle.setOpaque(false);
+        resultTitle.setBorder(null);
+        resultTitle.setFont(resultTitle.getFont().deriveFont(Font.BOLD, (float) scale(18)));
         resultTitle.setForeground(new Color(220, 196, 255));
 
-        result.add(resultTitle, BorderLayout.NORTH);
+        JPanel heading = new JPanel(new BorderLayout(0, scale(6)));
+        heading.setOpaque(false);
+        heading.add(resultTitle, BorderLayout.CENTER);
+        resultType.setForeground(MUTED);
+        heading.add(resultType, BorderLayout.SOUTH);
+        result.add(heading, BorderLayout.NORTH);
 
         resultDescription.setEditable(false);
         resultDescription.setLineWrap(true);
         resultDescription.setWrapStyleWord(true);
         resultDescription.setRows(7);
+        resultDescription.setColumns(24);
         resultDescription.setForeground(MUTED);
         resultDescription.setBorder(
                 new EmptyBorder(8, 8, 8, 8)
         );
 
-        result.add(resultDescription, BorderLayout.CENTER);
+        JScrollPane descriptionScroll = new JScrollPane(resultDescription);
+        descriptionScroll.setBorder(null);
+        result.add(descriptionScroll, BorderLayout.CENTER);
         result.add(saveRecipeButton, BorderLayout.SOUTH);
 
-        return result;
+        return card;
     }
 
     /**
@@ -118,6 +142,7 @@ public final class MixturePanel extends JPanel {
      */
     public void showPending(boolean empty) {
         saveRecipeButton.setEnabled(false);
+        resultType.setVisible(false);
 
         resultTitle.setText(
                 empty
@@ -142,9 +167,10 @@ public final class MixturePanel extends JPanel {
 
         showMixture(snapshot);
 
-        resultTitle.setText(
-                result.name() + " · " + result.type()
-        );
+        resultTitle.setText(result.name());
+        resultType.setText(result.type());
+        resultType.setToolTipText(result.type());
+        resultType.setVisible(true);
 
         resultDescription.setText(
                 result.description()

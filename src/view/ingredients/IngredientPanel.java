@@ -55,8 +55,7 @@ public final class IngredientPanel extends JPanel {
 
         setOpaque(false);
 
-        JButton createButton =
-                primaryButton("Новый ингредиент");
+        JButton createButton = new JButton("Новый ингредиент");
         createButton.addActionListener(e -> createIngredient());
         deleteButton.addActionListener(e -> deleteSelectedIngredient());
 
@@ -98,7 +97,10 @@ public final class IngredientPanel extends JPanel {
                 new EmptyBorder(8, 8, 8, 8)
         );
 
-        bottom.add(ingredientDescription);
+        JScrollPane descriptionScroll = new JScrollPane(ingredientDescription);
+        descriptionScroll.setBorder(null);
+        descriptionScroll.setPreferredSize(new Dimension(scale(240), scale(112)));
+        bottom.add(descriptionScroll);
         bottom.add(Box.createVerticalStrut(8));
 
         JPanel addRow = new JPanel(new BorderLayout(6, 0));
@@ -107,7 +109,7 @@ public final class IngredientPanel extends JPanel {
         JLabel quantityLabel = new JLabel("Количество:");
         quantityLabel.setForeground(TEXT);
 
-        addRow.add(quantityLabel, BorderLayout.WEST);
+        addRow.add(quantityLabel, BorderLayout.NORTH);
         addRow.add(quantitySpinner, BorderLayout.CENTER);
 
         addButton.addActionListener(

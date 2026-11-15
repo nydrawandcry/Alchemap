@@ -53,7 +53,6 @@ public final class HistoryPanel extends JPanel {
      * Настраивает отображение таблицы и столбца рецептов
      */
     private void configureTable(Color accent) {
-        historyTable.setRowHeight(28);
         historyTable.setFillsViewportHeight(true);
         historyTable.setSelectionMode(
                 ListSelectionModel.SINGLE_SELECTION

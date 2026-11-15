@@ -6,6 +6,7 @@ import data.AlchemyRepository;
 import model.ExperimentState;
 import model.Ingredient;
 import view.common.NameDialogs;
+import view.common.SectionCard;
 import view.ingredients.IngredientPanel;
 import view.experiment.ExperimentPanel;
 import view.mixture.MixturePanel;
@@ -20,7 +21,7 @@ import static view.common.UiTheme.*;
  * Собирает панели лаборатории и отображает состояние контроллера
  */
 public final class LaboratoryPanel extends JPanel
-        implements ExperimentView {
+        implements ExperimentView, Scrollable {
 
     private final ExperimentController controller;
     private final IngredientPanel ingredientPanel;
@@ -55,9 +56,8 @@ public final class LaboratoryPanel extends JPanel
     }
 
     private void buildLayout() {
-        JPanel ingredientCard = card("Ингредиенты");
-        ingredientCard.setLayout(new BorderLayout());
-        ingredientCard.add(
+        SectionCard ingredientCard = card("Ингредиенты");
+        ingredientCard.body().add(
                 ingredientPanel,
                 BorderLayout.CENTER
         );
@@ -66,7 +66,7 @@ public final class LaboratoryPanel extends JPanel
         c.gridy = 0;
         c.fill = GridBagConstraints.BOTH;
         c.weighty = 1;
-        c.insets = new Insets(0, 0, 0, 10);
+        c.insets = new Insets(0, 0, 0, scale(12));
 
         c.gridx = 0;
         c.weightx = 0.26;
@@ -80,6 +80,44 @@ public final class LaboratoryPanel extends JPanel
         c.weightx = 0.30;
         c.insets = new Insets(0, 0, 0, 0);
         add(mixturePanel, c);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        return new Dimension(scale(1240), scale(640));
+    }
+
+    @Override
+    public Dimension getMinimumSize() {
+        return new Dimension(scale(1120), scale(580));
+    }
+
+    @Override
+    public Dimension getPreferredScrollableViewportSize() {
+        return getPreferredSize();
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportWidth() {
+        return getParent() instanceof JViewport viewport
+                && viewport.getWidth() >= getMinimumSize().width;
+    }
+
+    @Override
+    public boolean getScrollableTracksViewportHeight() {
+        return getParent() instanceof JViewport viewport
+                && viewport.getHeight() >= getMinimumSize().height;
+    }
+
+    @Override
+    public int getScrollableUnitIncrement(Rectangle visible, int orientation, int direction) {
+        return scale(24);
+    }
+
+    @Override
+    public int getScrollableBlockIncrement(Rectangle visible, int orientation, int direction) {
+        int length = orientation == SwingConstants.VERTICAL ? visible.height : visible.width;
+        return Math.max(scale(24), length - scale(24));
     }
 
     @Override

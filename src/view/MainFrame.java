@@ -2,7 +2,8 @@ package view;
 
 import data.AlchemyRepository;
 import model.Ingredient;
-import view.common.UiTheme;
+import view.common.RoundedPanel;
+import view.common.SectionCard;
 import view.history.HistoryPanel;
 import view.laboratory.LaboratoryPanel;
 
@@ -52,12 +53,6 @@ public final class MainFrame extends JFrame {
             }
         });
 
-        setMinimumSize(new Dimension(1180, 760));
-        setSize(1360, 820);
-        setLocationRelativeTo(null);
-
-        UiTheme.apply();
-
         historyPanel = new HistoryPanel(repository, ACCENT);
 
         laboratoryPanel = new LaboratoryPanel(
@@ -67,6 +62,7 @@ public final class MainFrame extends JFrame {
         );
 
         setContentPane(buildRoot());
+        configureWindowSize();
         historyPanel.refreshHistory();
 
         if (startupWarning != null
@@ -84,17 +80,22 @@ public final class MainFrame extends JFrame {
 
     private JComponent buildRoot() {
         JPanel root = new JPanel(
-                new BorderLayout(12, 12)
+                new BorderLayout(scale(16), scale(20))
         );
         root.setBackground(BG);
         root.setBorder(
-                new EmptyBorder(14, 14, 14, 14)
+                new EmptyBorder(scale(20), scale(20), scale(20), scale(20))
         );
 
         root.add(buildHeader(), BorderLayout.NORTH);
 
         JTabbedPane tabs = new JTabbedPane();
-        tabs.addTab("Лаборатория", laboratoryPanel);
+        tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
+        JScrollPane laboratoryScroll = new JScrollPane(laboratoryPanel);
+        laboratoryScroll.setBorder(null);
+        laboratoryScroll.setOpaque(false);
+        laboratoryScroll.getViewport().setBackground(BG);
+        tabs.addTab("Лаборатория", laboratoryScroll);
         tabs.addTab("Журнал опытов", buildHistory());
 
         potionRulesPanel = new PotionRulesPanel(repository);
@@ -106,22 +107,17 @@ public final class MainFrame extends JFrame {
     }
 
     private JComponent buildHeader() {
-        JPanel header = new JPanel(new BorderLayout());
+        JPanel header = new JPanel(new BorderLayout(scale(20), 0));
         header.setBackground(BG);
 
-        JLabel title = new JLabel("ALCHEMAP");
+        JLabel title = new JLabel("Alchemap");
         title.setForeground(TEXT);
-        title.setFont(
-                new Font(Font.SANS_SERIF, Font.BOLD, 28)
-        );
+        title.putClientProperty("FlatLaf.styleClass", "h1");
 
         JLabel sub = new JLabel(
                 "Интерактивная алхимическая лаборатория для D&D"
         );
         sub.setForeground(MUTED);
-        sub.setFont(
-                new Font(Font.SANS_SERIF, Font.PLAIN, 14)
-        );
 
         JPanel text = new JPanel();
         text.setLayout(
@@ -129,23 +125,49 @@ public final class MainFrame extends JFrame {
         );
         text.setBackground(BG);
         text.add(title);
+        text.add(Box.createVerticalStrut(scale(4)));
         text.add(sub);
 
         header.add(text, BorderLayout.WEST);
 
         modeLabel.setForeground(MUTED);
-        header.add(modeLabel, BorderLayout.EAST);
+        RoundedPanel storage = new RoundedPanel(new BorderLayout(), 24, OUTLINE);
+        storage.setBackground(PANEL);
+        storage.setBorder(new EmptyBorder(scale(9), scale(14), scale(9), scale(14)));
+        storage.add(modeLabel, BorderLayout.CENTER);
+
+        JPanel storageArea = new JPanel(new GridBagLayout());
+        storageArea.setOpaque(false);
+        storageArea.add(storage);
+        header.add(storageArea, BorderLayout.EAST);
 
         return header;
     }
 
     private JComponent buildHistory() {
-        JPanel panel = card(
+        SectionCard panel = card(
                 "Журнал опытов и сохранённые рецепты"
         );
-        panel.setLayout(new BorderLayout());
-        panel.add(historyPanel, BorderLayout.CENTER);
+        panel.body().add(historyPanel, BorderLayout.CENTER);
         return panel;
+    }
+
+    private void configureWindowSize() {
+        GraphicsConfiguration configuration = getGraphicsConfiguration();
+        Rectangle screen = configuration.getBounds();
+        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(configuration);
+        int availableWidth = Math.max(1,
+                screen.width - insets.left - insets.right - scale(24));
+        int availableHeight = Math.max(1,
+                screen.height - insets.top - insets.bottom - scale(24));
+
+        setMinimumSize(new Dimension(
+                Math.min(scale(1120), availableWidth),
+                Math.min(scale(680), availableHeight)
+        ));
+        setSize(Math.min(scale(1360), availableWidth),
+                Math.min(scale(820), availableHeight));
+        setLocationRelativeTo(null);
     }
 
     @Override
