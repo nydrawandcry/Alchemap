@@ -8,6 +8,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.table.AbstractTableModel;
+import view.common.DecimalCellEditor;
 import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -145,6 +146,14 @@ public final class PotionRulesPanel extends JPanel {
     }
 
     private void configureConditionEditors() {
+        table.getColumnModel()
+                .getColumn(4)
+                .setCellEditor(new DecimalCellEditor());
+
+        table.getColumnModel()
+                .getColumn(5)
+                .setCellEditor(new DecimalCellEditor());
+
         table.getColumnModel().getColumn(1).setCellEditor(new DefaultCellEditor(new JComboBox<>(RuleMetric.values())));
         table.getColumnModel().getColumn(2).setCellEditor(new DefaultCellEditor(new JComboBox<>(RuleComparison.values())));
         JComboBox<Object> other = new JComboBox<>();
@@ -185,9 +194,24 @@ public final class PotionRulesPanel extends JPanel {
     public boolean confirmDiscard() { return discardChanges(); }
 
     private boolean discardChanges() {
-        if (table.isEditing()) stopEditing();
-        return !dirty || JOptionPane.showConfirmDialog(this, "Отменить несохранённые изменения результата?",
-                "Редактор мастера", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION;
+        boolean unfinishedCell = !stopEditing();
+
+        if (!dirty && !unfinishedCell) {
+            return true;
+        }
+
+        boolean discard = JOptionPane.showConfirmDialog(
+                this,
+                "Отменить несохранённые изменения результата?",
+                "Редактор мастера",
+                JOptionPane.YES_NO_OPTION
+        ) == JOptionPane.YES_OPTION;
+
+        if (discard && table.isEditing()) {
+            table.getCellEditor().cancelCellEditing();
+        }
+
+        return discard;
     }
 
     private void selectNew(PotionRule rule) {
@@ -224,6 +248,8 @@ public final class PotionRulesPanel extends JPanel {
     }
 
     private void save() {
+        if (!stopEditing()) return;
+
         try {
             PotionRule rule = editedRule();
             if (rule.enabled() && rule.conditions().isEmpty()

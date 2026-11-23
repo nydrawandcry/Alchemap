@@ -9,6 +9,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.concurrent.ExecutionException;
+import view.common.InputFilters;
 
 /**
  * Форма создания ингредиента
@@ -73,6 +74,8 @@ public final class IngredientDialog extends JDialog {
             addRow(form, i + 3, statNames[i], stats[i]);
         }
 
+        installInputValidation();
+
         root.add(form, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new BorderLayout(8, 8));
@@ -116,7 +119,7 @@ public final class IngredientDialog extends JDialog {
     }
 
     private void saveIngredient() {
-        if (saving) return;
+        if (saving || !isInputValid()) return;
 
         final NewIngredient draft;
 
@@ -199,7 +202,7 @@ public final class IngredientDialog extends JDialog {
     private void setSaving(boolean value) {
         saving = value;
 
-        save.setEnabled(!value);
+        updateSaveButton();
         cancel.setEnabled(!value);
         name.setEnabled(!value);
         category.setEnabled(!value);
@@ -245,5 +248,38 @@ public final class IngredientDialog extends JDialog {
         c.fill = GridBagConstraints.HORIZONTAL;
 
         form.add(input, c);
+    }
+
+    private void installInputValidation() {
+        InputFilters.limit(name, 100);
+        InputFilters.limit(category, 60);
+        InputFilters.limit(description, 500);
+
+        for (JTextField field : stats) {
+            InputFilters.ingredientStat(field);
+            InputFilters.onChange(field, this::updateSaveButton);
+        }
+
+        InputFilters.onChange(name, this::updateSaveButton);
+        InputFilters.onChange(category, this::updateSaveButton);
+    }
+
+    private boolean isInputValid() {
+        if (name.getText().trim().isEmpty()
+                || category.getText().trim().isEmpty()) {
+            return false;
+        }
+
+        for (JTextField field : stats) {
+            if (!InputFilters.isIngredientStatComplete(field.getText())) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private void updateSaveButton() {
+        save.setEnabled(!saving && isInputValid());
     }
 }
